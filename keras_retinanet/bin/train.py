@@ -175,9 +175,9 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
                 '{backbone}_{dataset_type}_{{epoch:02d}}.h5'.format(backbone=args.backbone, dataset_type=args.dataset_type)
             ),
             verbose=1,
-            # save_best_only=True,
-            # monitor="mAP",
-            # mode='max'
+            save_best_only=True,
+            monitor="mAP",
+            mode='max'
         )
         checkpoint = RedirectModel(checkpoint, model)
         callbacks.append(checkpoint)
@@ -191,6 +191,12 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         epsilon  = 0.0001,
         cooldown = 0,
         min_lr   = 0
+    ))
+
+    callbacks.append(keras.callbacks.EarlyStopping(
+        monitor='mAP',
+        patience=5,
+        mode='max'
     ))
 
     return callbacks
@@ -279,7 +285,7 @@ def create_generators(args, preprocess_image):
             version=args.version,
             labels_filter=args.labels_filter,
             annotation_cache_dir=args.annotation_cache_dir,
-            parent_label=args.parent_label,
+            fixed_labels=args.fixed_labels,
             transform_generator=transform_generator,
             **common_args
         )
@@ -290,7 +296,7 @@ def create_generators(args, preprocess_image):
             version=args.version,
             labels_filter=args.labels_filter,
             annotation_cache_dir=args.annotation_cache_dir,
-            parent_label=args.parent_label,
+            fixed_labels=args.fixed_labels,
             **common_args
         )
     elif args.dataset_type == 'kitti':
@@ -367,7 +373,7 @@ def parse_args(args):
     oid_parser.add_argument('--version',  help='The current dataset version is v4.', default='v4')
     oid_parser.add_argument('--labels-filter',  help='A list of labels to filter.', type=csv_list, default=None)
     oid_parser.add_argument('--annotation-cache-dir', help='Path to store annotation cache.', default='.')
-    oid_parser.add_argument('--parent-label', help='Use the hierarchy children of this label.', default=None)
+    oid_parser.add_argument('--fixed-labels', help='Use the exact specified labels.', default=False)
 
     csv_parser = subparsers.add_parser('csv')
     csv_parser.add_argument('annotations', help='Path to CSV file containing annotations for training.')
