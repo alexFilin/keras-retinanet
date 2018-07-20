@@ -428,10 +428,12 @@ def main(args=None):
     # create the model
     if args.snapshot is not None:
         print('Loading model, this may take a second...')
+        initial_epoch = int(os.path.basename(os.path.splitext(args.snapshot)[0]).split('_')[-1])
         model            = models.load_model(args.snapshot, backbone_name=args.backbone)
         training_model   = model
         prediction_model = retinanet_bbox(model=model)
     else:
+        initial_epoch = 0
         weights = args.weights
         # default to imagenet if nothing else is specified
         if weights is None and args.imagenet_weights:
@@ -471,6 +473,7 @@ def main(args=None):
         epochs=args.epochs,
         verbose=1,
         callbacks=callbacks,
+        initial_epoch=initial_epoch
     )
 
 
