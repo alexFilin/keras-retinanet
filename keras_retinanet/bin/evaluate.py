@@ -141,6 +141,7 @@ def main(args=None):
         evaluate_coco(generator, model, args.score_threshold)
     else:
         average_precisions = evaluate(
+            args.backbone,
             generator,
             model,
             iou_threshold=args.iou_threshold,

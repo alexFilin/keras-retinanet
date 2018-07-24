@@ -98,3 +98,52 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
         draw_caption(image, a, caption)
 
         draw_box(image, a, color=c)
+
+
+def rendering(image, prc_min_k=9.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
+    calc_min, calc_max = calc_min_max(image, prc_min_k, prc_max, r_type, nodata_value)
+    contrast_stretching = np.maximum(image, calc_min)
+    contrast_stretching = np.minimum(contrast_stretching, calc_max)
+    contrast_stretching = (contrast_stretching - calc_min) / (calc_max.astype(np.float32) - calc_min) * 255
+    return contrast_stretching.astype(np.uint8)
+
+
+def calc_min_max(image, prc_min_k=9.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
+    if nodata_value:
+        n_ch = 1
+        if len(image.shape) > 2:
+            n_ch = image.shape[2]
+        if len(nodata_value) != n_ch:
+            raise RuntimeError('Nodata value length must match with num channels')
+        image_stat = image.astype(np.float32).copy()
+        ndv = np.full((len(nodata_value),), np.nan, dtype=np.float32)
+        val = np.array(nodata_value).astype(np.float32)
+        ind = np.all(image_stat == val, axis=len(nodata_value) - 1)
+        image_stat[ind] = ndv
+    else:
+        image_stat = image
+    calc_min = np.array(0)
+    calc_max = np.array(0)
+    # calculation min max
+    if r_type == 'STD_DEV_K':
+        mean = np.nanmean(image_stat, axis=(0, 1))
+        # std = np.sqrt(np.mean((image - mean) ** 2, axis=(0, 1)))
+        std = np.nanstd(image_stat, axis=(0, 1))
+        calc_max = (mean + std * prc_min_k)
+        calc_min = (mean - std * prc_min_k)
+    image_dtype = image.dtype
+    if r_type == 'CUM_CUT':
+        calc_min, calc_max = np.nanpercentile(image_stat, [prc_min_k, prc_max], axis=(0, 1)).astype(image_dtype)
+    if not (image_dtype == np.float32 or image_dtype == np.float64
+            or image_dtype == np.int8 or image_dtype == np.int16
+            or image_dtype == np.int32):
+        calc_min = np.maximum(calc_min, 0).astype(image_dtype)
+        calc_max = np.minimum(calc_max, 2 ** (8 * image_dtype.itemsize) - 1).astype(image_dtype)
+    calc_dif = calc_max - calc_min
+    if calc_dif.any() == 0:
+        r_type = 'MIN_MAX'
+        print('\x1b[0;31;40m' + 'WARNING: Minimum operation performed!' + '\x1b[0m')
+    if r_type == 'MIN_MAX':
+        calc_min = np.nanmin(image_stat, axis=(0, 1))
+        calc_max = np.nanmax(image_stat, axis=(0, 1))
+    return calc_min, calc_max
