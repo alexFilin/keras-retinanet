@@ -43,9 +43,13 @@ def get_session():
     return tf.Session(config=config)
 
 
-def create_generator(args):
+def create_generator(args, preprocess_image):
     """ Create generators for evaluation.
     """
+    common_args = {
+        'preprocess_image' : preprocess_image,
+    }
+
     if args.dataset_type == 'coco':
         # import here to prevent unnecessary dependency on cocoapi
         from ..preprocessing.coco import CocoGenerator
@@ -68,7 +72,8 @@ def create_generator(args):
             args.annotations,
             args.classes,
             image_min_side=args.image_min_side,
-            image_max_side=args.image_max_side
+            image_max_side=args.image_max_side,
+            **common_args
         )
     else:
         raise ValueError('Invalid data type received: {}'.format(args.dataset_type))
@@ -125,8 +130,9 @@ def main(args=None):
     if args.save_path is not None and not os.path.exists(args.save_path):
         os.makedirs(args.save_path)
 
+    backbone = models.backbone(args.backbone)
     # create the generator
-    generator = create_generator(args)
+    generator = create_generator(args, backbone.preprocess_image)
 
     # load the model
     print('Loading model, this may take a second...')
@@ -141,7 +147,6 @@ def main(args=None):
         evaluate_coco(generator, model, args.score_threshold)
     else:
         average_precisions = evaluate(
-            args.backbone,
             generator,
             model,
             iou_threshold=args.iou_threshold,

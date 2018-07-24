@@ -54,7 +54,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(backbone_name, generator, model, score_threshold=0.05, max_detections=100, save_path=None):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -70,14 +70,10 @@ def _get_detections(backbone_name, generator, model, score_threshold=0.05, max_d
         A list of lists containing the detections for each image in the generator.
     """
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
-    mode = 'tf'
-
-    if ("resnet" or "vgg") in backbone_name:
-        mode = 'caffe'
 
     for i in range(generator.size()):
         raw_image    = generator.load_image(i)
-        image        = generator.preprocess_image(raw_image.copy(), mode=mode)
+        image        = generator.preprocess_image(raw_image.copy())
         image, scale = generator.resize_image(image)
 
         # run network
@@ -144,7 +140,6 @@ def _get_annotations(generator):
 
 
 def evaluate(
-    backbone_name,
     generator,
     model,
     iou_threshold=0.5,
@@ -165,7 +160,7 @@ def evaluate(
         A dict mapping class names to mAP scores.
     """
     # gather all detections and annotations
-    all_detections     = _get_detections(backbone_name, generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path)
+    all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path)
     all_annotations    = _get_annotations(generator)
     average_precisions = {}
 

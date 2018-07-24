@@ -24,6 +24,7 @@ import warnings
 import keras
 import keras.preprocessing.image
 import tensorflow as tf
+import numpy as np
 
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
@@ -35,7 +36,7 @@ if __name__ == "__main__" and __package__ is None:
 from .. import layers  # noqa: F401
 from .. import losses
 from .. import models
-from ..callbacks import RedirectModel
+from ..callbacks import RedirectModel, TimeHistory
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
 from ..preprocessing.csv_generator import CSVGenerator
@@ -466,6 +467,9 @@ def main(args=None):
         args,
     )
 
+    time_history = TimeHistory()
+    callbacks.append(time_history)
+
     # start training
     training_model.fit_generator(
         generator=train_generator,
@@ -476,6 +480,8 @@ def main(args=None):
         initial_epoch=initial_epoch
     )
 
+    times = time_history.times
+    print "Average epoch time: {}".format(np.average(times))
 
 if __name__ == '__main__':
     main()
