@@ -3,16 +3,16 @@ import time
 
 
 class TimeHistory(keras.callbacks.Callback):
-   def on_train_begin(self, logs=None):
-       self.times = []
+    def on_train_begin(self, logs=None):
+        self.times = []
 
-   def on_epoch_begin(self, batch, logs=None):
-       self.epoch_time_start = time.time()
+    def on_epoch_begin(self, batch, logs=None):
+        self.epoch_time_start = time.time()
 
-   def on_epoch_end(self, batch, logs=None):
-       epoch_time = time.time() - self.epoch_time_start
-       self.times.append(epoch_time)
-       print "Epoch time: {}".format(epoch_time)
+    def on_epoch_end(self, batch, logs=None):
+        epoch_time = time.time() - self.epoch_time_start
+        self.times.append(epoch_time)
+        print("Epoch time: {}".format(epoch_time))
 
 
 class RedirectModel(keras.callbacks.Callback):
