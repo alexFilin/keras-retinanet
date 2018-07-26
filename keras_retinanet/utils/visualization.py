@@ -42,8 +42,8 @@ def draw_caption(image, box, caption):
         caption : String containing the text to draw.
     """
     b = np.array(box).astype(int)
-    cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 0), 2)
-    cv2.putText(image, caption, (b[0], b[1] - 10), cv2.FONT_HERSHEY_PLAIN, 1, (255, 255, 255), 1)
+    cv2.putText(image, caption, (b[0] + 5, b[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 4)
+    cv2.putText(image, caption, (b[0] + 5, b[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
 
 def draw_boxes(image, boxes, color, thickness=2):
@@ -94,13 +94,14 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
     for a in annotations:
         label   = a[4]
         c       = color if color is not None else label_color(label)
-        caption = '{}'.format(label_to_name(label) if label_to_name else label)
+        # caption = '{}'.format(label_to_name(label) if label_to_name else label)
+        caption = ""
         draw_caption(image, a, caption)
 
         draw_box(image, a, color=c)
 
 
-def rendering(image, prc_min_k=9.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
+def rendering(image, prc_min_k=2.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
     calc_min, calc_max = calc_min_max(image, prc_min_k, prc_max, r_type, nodata_value)
     contrast_stretching = np.maximum(image, calc_min)
     contrast_stretching = np.minimum(contrast_stretching, calc_max)
@@ -108,7 +109,7 @@ def rendering(image, prc_min_k=9.0, prc_max=98.0, r_type='STD_DEV_K', nodata_val
     return contrast_stretching.astype(np.uint8)
 
 
-def calc_min_max(image, prc_min_k=9.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
+def calc_min_max(image, prc_min_k=2.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
     if nodata_value:
         n_ch = 1
         if len(image.shape) > 2:

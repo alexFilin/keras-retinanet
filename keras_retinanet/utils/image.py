@@ -19,6 +19,7 @@ import keras
 import numpy as np
 import cv2
 from PIL import Image
+from osgeo import gdal
 
 from .transform import change_transform_origin
 
@@ -31,6 +32,13 @@ def read_image_bgr(path):
     """
     image = np.asarray(Image.open(path).convert('RGB'))
     return image[:, :, ::-1].copy()
+
+
+def read_image_gdal(path):
+    image = gdal.Open(path)
+    image_arr = image.ReadAsArray()
+    image_arr = (image_arr[:3, ...]).transpose([1, 2, 0])
+    return image_arr[:, :, ::-1].copy()
 
 
 def preprocess_image(x, mode='caffe'):
