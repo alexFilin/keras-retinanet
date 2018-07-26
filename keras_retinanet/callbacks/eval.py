@@ -16,6 +16,7 @@ limitations under the License.
 
 import keras
 from ..utils.eval import evaluate
+import time
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -45,8 +46,8 @@ class Evaluate(keras.callbacks.Callback):
         super(Evaluate, self).__init__()
 
     def on_epoch_end(self, epoch, logs=None):
+        start_time = time.time()
         logs = logs or {}
-
         # run evaluation
         average_precisions = evaluate(
             self.generator,
@@ -56,7 +57,6 @@ class Evaluate(keras.callbacks.Callback):
             max_detections=self.max_detections,
             save_path=self.save_path
         )
-
         # compute per class average precision
         present_classes = 0
         precision = 0
@@ -81,3 +81,5 @@ class Evaluate(keras.callbacks.Callback):
 
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
+        eval_time = time.time() - start_time
+        print("Evaluation time: {}".format(eval_time))

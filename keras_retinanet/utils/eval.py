@@ -23,6 +23,8 @@ import numpy as np
 import os
 
 import cv2
+from dsel.my_io import save_np_using_gdal
+from dsel.rendering import rendering
 
 
 def _compute_ap(recall, precision):
@@ -98,12 +100,14 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
         if save_path is not None:
-            raw_image = generator.load_image_gdal(i)
+            image = generator.load_image_gdal(i)
+            raw_image = image[0]
             raw_image = rendering(raw_image, r_type = 'CUM_CUT')
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name)
 
-            cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
+            save_np_using_gdal(os.path.join(save_path, '{}.TIF'.format(i)), raw_image[:, :, ::-1], geo_info=image[1])
+            # cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):

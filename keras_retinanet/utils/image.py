@@ -22,6 +22,7 @@ from PIL import Image
 from osgeo import gdal
 
 from .transform import change_transform_origin
+from dsel.my_io import load_image
 
 
 def read_image_bgr(path):
@@ -35,10 +36,9 @@ def read_image_bgr(path):
 
 
 def read_image_gdal(path):
-    image = gdal.Open(path)
-    image_arr = image.ReadAsArray()
-    image_arr = (image_arr[:3, ...]).transpose([1, 2, 0])
-    return image_arr[:, :, ::-1].copy()
+    image_source = load_image(path)
+    image = image_source[0][:3, ...].transpose([1, 2, 0])
+    return image[:, :, ::-1].copy(), image_source[1]
 
 
 def preprocess_image(x, mode='caffe'):
