@@ -41,6 +41,12 @@ def read_image_gdal(path):
     return image[:, :, ::-1].copy(), image_source[1]
 
 
+def read_image_gdal_simple(path):
+    image_source = load_image(path)
+    image = image_source[0].transpose([1, 2, 0])
+    return image.copy()
+
+
 def preprocess_image(x, mode='caffe'):
     """ Preprocess an image by subtracting the ImageNet mean.
 

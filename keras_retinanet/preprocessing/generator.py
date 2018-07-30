@@ -113,6 +113,11 @@ class Generator(object):
         """
         raise NotImplementedError('load_image method not implemented')
 
+    def load_image_gdal_simple(self, image_index):
+        """ Load an image at the image_index.
+        """
+        pass
+
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
         """
@@ -154,7 +159,8 @@ class Generator(object):
     def load_image_group(self, group):
         """ Load images for all images in a group.
         """
-        return [self.load_image(image_index) for image_index in group]
+        return [self.load_image_gdal_simple(image_index) for image_index in group]
+        # return [self.load_image(image_index) for image_index in group]
 
     def random_transform_group_entry(self, image, annotations):
         """ Randomly transforms image and annotation.
@@ -180,7 +186,7 @@ class Generator(object):
         """ Preprocess image and its annotations.
         """
         # preprocess the image
-        image = self.preprocess_image(image)
+        # image = self.preprocess_image(image)
 
         # randomly transform image and annotations
         image, annotations = self.random_transform_group_entry(image, annotations)

@@ -81,7 +81,7 @@ def vgg_retinanet(num_classes, backbone='vgg16', inputs=None, modifier=None, **k
     """
     # choose default input
     if inputs is None:
-        inputs = keras.layers.Input(shape=(None, None, 3))
+        inputs = keras.layers.Input(shape=(None, None, 4))
 
     # create the vgg backbone
     if backbone == 'vgg16':

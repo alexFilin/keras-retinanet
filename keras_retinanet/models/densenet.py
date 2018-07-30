@@ -79,7 +79,7 @@ def densenet_retinanet(num_classes, backbone='densenet121', inputs=None, modifie
     """
     # choose default input
     if inputs is None:
-        inputs = keras.layers.Input((None, None, 3))
+        inputs = keras.layers.Input((None, None, 4))
 
     blocks = allowed_backbones[backbone]
     backbone = densenet.DenseNet(blocks=blocks, input_tensor=inputs, include_top=False, pooling=None, weights=None)
