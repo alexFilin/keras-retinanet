@@ -37,13 +37,16 @@ def read_image_bgr(path):
 
 def read_image_gdal(path):
     image_source = load_image(path)
-    image = image_source[0][:3, ...].transpose([1, 2, 0])
-    return image[:, :, ::-1].copy(), image_source[1]
+    image_rgb = image_source[0][:3, ...].transpose([1, 2, 0])
+    return image_rgb[:, :, ::-1].copy(), image_source[1]
 
 
 def read_image_gdal_simple(path):
     image_source = load_image(path)
-    image = image_source[0].transpose([1, 2, 0])
+    image_rgb = image_source[0][:3, ...].transpose([1, 2, 0])
+    image_bgr = image_rgb[:, :, ::-1]
+    image_nir = image_source[0][3:, ...].transpose([1, 2, 0])
+    image = np.concatenate((image_bgr, image_nir), axis=2)
     return image.copy()
 
 
