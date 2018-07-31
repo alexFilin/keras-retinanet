@@ -87,7 +87,6 @@ class Evaluate(keras.callbacks.Callback):
             print('mAP: {:.4f}'.format(self.mean_ap))
         eval_time = time.time() - start_time
         self.times.append(eval_time)
-        print("Epoch time: {}".format(eval_time))
         print("Evaluation time: {}".format(eval_time))
 
     def on_train_end(self, logs=None):
