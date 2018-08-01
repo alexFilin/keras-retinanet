@@ -75,8 +75,8 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
 
     for i in range(generator.size()):
         raw_image    = generator.load_image_gdal_simple(i)
-        # image        = generator.preprocess_image(raw_image.copy())
-        image = raw_image.copy()
+        image        = generator.preprocess_image(raw_image.copy())
+        # image = raw_image.copy()
         image, scale = generator.resize_image(image)
 
         # run network

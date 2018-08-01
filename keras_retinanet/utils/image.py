@@ -67,7 +67,7 @@ def preprocess_image(x, mode='caffe'):
     # except for converting RGB -> BGR since we assume BGR already
     x = x.astype(keras.backend.floatx())
     if mode == 'tf':
-        x /= 127.5
+        x /= 32767.5
         x -= 1.
     elif mode == 'caffe':
         if keras.backend.image_data_format() == 'channels_first':
@@ -80,9 +80,10 @@ def preprocess_image(x, mode='caffe'):
                 x[:, 1, :, :] -= 116.779
                 x[:, 2, :, :] -= 123.68
         else:
-            x[..., 0] -= 103.939
-            x[..., 1] -= 116.779
-            x[..., 2] -= 123.68
+            x[..., 0] -= 935.8877
+            x[..., 1] -= 1002.0702
+            x[..., 2] -= 1243.3221
+            x[..., 3] -= 1586.7410
 
     return x
 
