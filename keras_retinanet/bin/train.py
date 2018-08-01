@@ -183,22 +183,23 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         checkpoint = RedirectModel(checkpoint, model)
         callbacks.append(checkpoint)
 
-    callbacks.append(keras.callbacks.ReduceLROnPlateau(
-        monitor  = 'loss',
-        factor   = 0.1,
-        patience = 2,
-        verbose  = 1,
-        mode     = 'auto',
-        epsilon  = 0.0001,
-        cooldown = 0,
-        min_lr   = 0
-    ))
-
-    callbacks.append(keras.callbacks.EarlyStopping(
-        monitor='mAP',
-        patience=5,
-        mode='max'
-    ))
+    if args.lr_reduce:
+        callbacks.append(keras.callbacks.ReduceLROnPlateau(
+            monitor  = 'mAP',
+            factor   = 0.9,
+            patience = 2,
+            verbose  = 1,
+            mode     = 'max',
+            epsilon  = 0.0001,
+            cooldown = 0,
+            min_lr   = 0
+        ))
+    if args.early_stopping:
+        callbacks.append(keras.callbacks.EarlyStopping(
+            monitor='mAP',
+            patience=args.early_stopping,
+            mode='max'
+        ))
 
     return callbacks
 
@@ -400,6 +401,8 @@ def parse_args(args):
     parser.add_argument('--no-evaluation',   help='Disable per epoch evaluation.', dest='evaluation', action='store_false')
     parser.add_argument('--freeze-backbone', help='Freeze training of backbone layers.', action='store_true')
     parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
+    parser.add_argument('--lr-reduce',      help='Reduce learning rate when a metric has stopped improving', action='store_true')
+    parser.add_argument('--early-stopping', help='Number of epoch for stop training when a monitored quantity has stopped improving', type=int, required=False)
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int, default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
 
