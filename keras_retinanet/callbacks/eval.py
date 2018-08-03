@@ -17,6 +17,7 @@ limitations under the License.
 import keras
 from ..utils.eval import evaluate
 import time
+import numpy as np
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -44,6 +45,9 @@ class Evaluate(keras.callbacks.Callback):
         self.verbose         = verbose
 
         super(Evaluate, self).__init__()
+
+    def on_train_begin(self, logs=None):
+        self.times = []
 
     def on_epoch_end(self, epoch, logs=None):
         start_time = time.time()
@@ -82,4 +86,8 @@ class Evaluate(keras.callbacks.Callback):
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
         eval_time = time.time() - start_time
+        self.times.append(eval_time)
         print("Evaluation time: {}".format(eval_time))
+
+    def on_train_end(self, logs=None):
+        print "Average evaluation time: {}".format(np.average(self.times))
