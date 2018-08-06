@@ -18,6 +18,7 @@ import keras
 from ..utils.eval import evaluate
 import time
 import numpy as np
+import operator
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -48,6 +49,7 @@ class Evaluate(keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         self.times = []
+        self.list_average_precisions = []
 
     def on_epoch_end(self, epoch, logs=None):
         start_time = time.time()
@@ -72,6 +74,7 @@ class Evaluate(keras.callbacks.Callback):
                 present_classes += 1
                 precision       += average_precision
         self.mean_ap = precision / present_classes
+        self.list_average_precisions.append((self.mean_ap, average_precisions))
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
             import tensorflow as tf
@@ -91,3 +94,10 @@ class Evaluate(keras.callbacks.Callback):
 
     def on_train_end(self, logs=None):
         print "Average evaluation time: {}".format(np.average(self.times))
+        print "Best classification results:"
+        get_first_item = operator.itemgetter(0)
+        self.list_average_precisions.sort(key=get_first_item, reverse=True)
+        best_map = self.list_average_precisions[0][1]
+        for label, (average_precision, num_annotations) in best_map.items():
+            print('{:.0f} instances of class'.format(num_annotations),
+                  self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
