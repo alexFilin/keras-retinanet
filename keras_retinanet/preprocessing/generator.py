@@ -210,11 +210,39 @@ class Generator(object):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
         # determine the order of the images
-        order = list(range(self.size()))
+
+        from collections import Counter
+        image_classes = []
+
+        for i, (key, value) in enumerate(self.image_data.iteritems()):
+            c = Counter()
+            for item in value:
+                c[item["class"]] += 1
+            if len(value) == 0:
+                image_classes.append(("Empty", i))
+            else:
+                image_classes.append((c.most_common(1)[0][0], i))
+
+        classes_names = self.classes.keys()
+        classes_names.append("Empty")
+
+        order = []
+        while len(image_classes) > 0:
+            np.random.shuffle(classes_names)
+            for y in classes_names:
+                data = filter(lambda z: z[0] == y, image_classes)
+                if len(data) > 0:
+                    order.append(data[0][1])
+                    image_classes.remove(data[0])
+
+        # order = list(range(self.size()))
         if self.group_method == 'random':
+            order = list(range(self.size()))
             random.shuffle(order)
         elif self.group_method == 'ratio':
-            order.sort(key=lambda x: self.image_aspect_ratio(x))
+            # order.sort(key=lambda x: self.image_aspect_ratio(x))
+            pass
+
 
         # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
