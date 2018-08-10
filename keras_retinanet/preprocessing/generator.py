@@ -221,7 +221,16 @@ class Generator(object):
             if len(value) == 0:
                 image_classes.append(("Empty", i))
             else:
-                image_classes.append((c.most_common(1)[0][0], i))
+                most_common = c.most_common(1)[0][0]
+                if most_common == "Other":
+                    keys = c.keys()
+                    keys.remove("Other")
+                    if len(keys) == 0:
+                        image_classes.append((most_common, i))
+                    else:
+                        image_classes.append((keys[0], i))
+                else:
+                    image_classes.append((most_common, i))
 
         classes_names = self.classes.keys()
         classes_names.append("Empty")
