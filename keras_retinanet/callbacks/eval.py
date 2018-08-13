@@ -17,11 +17,17 @@ limitations under the License.
 import keras
 from ..utils.eval import evaluate
 import time
+import operator
+import numpy as np
 
 
 class Evaluate(keras.callbacks.Callback):
     """ Evaluation callback for arbitrary datasets.
     """
+
+    def on_train_begin(self, logs=None):
+        self.times = []
+        self.list_average_precisions = []
 
     def __init__(self, generator, iou_threshold=0.5, score_threshold=0.05, max_detections=100, save_path=None, tensorboard=None, verbose=1):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
@@ -68,6 +74,7 @@ class Evaluate(keras.callbacks.Callback):
                 present_classes += 1
                 precision       += average_precision
         self.mean_ap = precision / present_classes
+        self.list_average_precisions.append((self.mean_ap, average_precisions))
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
             import tensorflow as tf
@@ -82,4 +89,15 @@ class Evaluate(keras.callbacks.Callback):
         if self.verbose == 1:
             print('mAP: {:.4f}'.format(self.mean_ap))
         eval_time = time.time() - start_time
+        self.times.append(eval_time)
         print("Evaluation time: {}".format(eval_time))
+
+    def on_train_end(self, logs=None):
+        print "Average evaluation time: {}".format(np.average(self.times))
+        print "Best classification results:"
+        get_first_item = operator.itemgetter(0)
+        self.list_average_precisions.sort(key=get_first_item, reverse=True)
+        best_map = self.list_average_precisions[0][1]
+        for label, (average_precision, num_annotations) in best_map.items():
+            print('{:.0f} instances of class'.format(num_annotations),
+                    self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
