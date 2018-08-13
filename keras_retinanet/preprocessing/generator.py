@@ -217,20 +217,14 @@ class Generator(object):
         for i, (key, value) in enumerate(self.image_data.iteritems()):
             c = Counter()
             for item in value:
-                c[item["class"]] += 1
+                area = (item['x2']-item['x1'])*(item['y2']-item['y1'])
+                if c[item["class"]] < area:
+                    c[item["class"]] = area
             if len(value) == 0:
                 image_classes.append(("Empty", i))
             else:
                 most_common = c.most_common(1)[0][0]
-                if most_common == "Other":
-                    keys = c.keys()
-                    keys.remove("Other")
-                    if len(keys) == 0:
-                        image_classes.append((most_common, i))
-                    else:
-                        image_classes.append((keys[0], i))
-                else:
-                    image_classes.append((most_common, i))
+                image_classes.append((most_common, i))
 
         classes_names = self.classes.keys()
         classes_names.append("Empty")
