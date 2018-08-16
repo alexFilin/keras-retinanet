@@ -19,7 +19,7 @@ import keras
 import numpy as np
 import cv2
 from PIL import Image
-from osgeo import gdal
+from skimage.io import imread
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
@@ -42,10 +42,10 @@ def read_image_gdal(path):
 
 
 def read_image_gdal_simple(path):
-    image_source = load_image(path)
-    image_rgb = image_source[0][:3, ...].transpose([1, 2, 0])
+    image_source = imread(path)
+    image_rgb = image_source[..., :3]
     image_bgr = image_rgb[:, :, ::-1]
-    image_nir = image_source[0][3:, ...].transpose([1, 2, 0])
+    image_nir = image_source[..., 3:]
     image = np.concatenate((image_bgr, image_nir), axis=2)
     return image.copy()
 
