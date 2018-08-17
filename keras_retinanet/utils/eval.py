@@ -17,7 +17,7 @@ limitations under the License.
 from __future__ import print_function
 
 from .anchors import compute_overlap
-from .visualization import draw_detections, draw_annotations, rendering
+from .visualization import draw_detections, draw_annotations
 
 import numpy as np
 import os

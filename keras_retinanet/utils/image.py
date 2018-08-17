@@ -23,6 +23,7 @@ from osgeo import gdal
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
+import cv2
 
 
 def read_image_bgr(path):
@@ -31,8 +32,10 @@ def read_image_bgr(path):
     Args
         path: Path to the image.
     """
-    image = np.asarray(Image.open(path).convert('RGB'))
-    return image[:, :, ::-1].copy()
+    # image = np.asarray(Image.open(path).convert('RGB'))
+    # return image[:, :, ::-1].copy()
+    image = cv2.imread(path, 1)
+    return image.copy()
 
 
 def read_image_gdal(path):
