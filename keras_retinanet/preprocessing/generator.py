@@ -229,14 +229,17 @@ class Generator(object):
         classes_names = self.classes.keys()
         classes_names.append("Empty")
 
+        data = {y: filter(lambda z: z[0] == y, image_classes) for y in classes_names}
+        values = data.values()
+        lens = sum([len(x) for x in values])
         order = []
-        while len(image_classes) > 0:
+        while lens > 0:
             np.random.shuffle(classes_names)
             for y in classes_names:
-                data = filter(lambda z: z[0] == y, image_classes)
-                if len(data) > 0:
-                    order.append(data[0][1])
-                    image_classes.remove(data[0])
+                if len(data[y]) > 0:
+                    order.append(data[y][0][1])
+                    data[y].remove(data[y][0])
+                    lens = sum([len(x) for x in values])
 
         # order = list(range(self.size()))
         if self.group_method == 'random':
@@ -245,7 +248,6 @@ class Generator(object):
         elif self.group_method == 'ratio':
             # order.sort(key=lambda x: self.image_aspect_ratio(x))
             pass
-
 
         # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
