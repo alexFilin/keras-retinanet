@@ -34,6 +34,7 @@ def draw_box(image, box, color, thickness=2):
 
 
 def draw_caption(image, box, caption):
+    # TODO: change placement
     """ Draws a caption above the box in an image.
 
     # Arguments
@@ -94,17 +95,9 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
     for a in annotations:
         label   = a[4]
         c       = color if color is not None else label_color(label)
-        # caption = '{}'.format(label_to_name(label) if label_to_name else label)
-        caption = ""
+        caption = '{}'.format(label_to_name(label) if label_to_name else label)
+        # caption = ""
         draw_caption(image, a, caption)
 
         draw_box(image, a, color=c)
-
-
-def rendering(image, prc_min_k=2.0, prc_max=98.0, r_type='STD_DEV_K', nodata_value=list()):
-    calc_min, calc_max = calc_min_max(image, prc_min_k, prc_max, r_type, nodata_value)
-    contrast_stretching = np.maximum(image, calc_min)
-    contrast_stretching = np.minimum(contrast_stretching, calc_max)
-    contrast_stretching = (contrast_stretching - calc_min) / (calc_max.astype(np.float32) - calc_min) * 255
-    return contrast_stretching.astype(np.uint8)
 

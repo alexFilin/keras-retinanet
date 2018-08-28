@@ -17,8 +17,9 @@ limitations under the License.
 from __future__ import print_function
 
 from .anchors import compute_overlap
-from .visualization import draw_detections, draw_annotations, rendering
+from .visualization import draw_detections, draw_annotations
 
+import keras
 import numpy as np
 import os
 
@@ -78,6 +79,9 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         image        = generator.preprocess_image(raw_image.copy())
         # image = raw_image.copy()
         image, scale = generator.resize_image(image)
+
+        if keras.backend.image_data_format() == 'channels_first':
+            image = image.transpose((2, 0, 1))
 
         # run network
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]

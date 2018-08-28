@@ -18,7 +18,6 @@ from __future__ import division
 import keras
 import numpy as np
 import cv2
-from PIL import Image
 from skimage.io import imread
 
 from .transform import change_transform_origin
@@ -31,8 +30,10 @@ def read_image_bgr(path):
     Args
         path: Path to the image.
     """
-    image = np.asarray(Image.open(path).convert('RGB'))
-    return image[:, :, ::-1].copy()
+    # image = np.asarray(Image.open(path).convert('RGB'))
+    # return image[:, :, ::-1].copy()
+    image = cv2.imread(path, 1)
+    return image.copy()
 
 
 def read_image_gdal(path):
@@ -70,20 +71,10 @@ def preprocess_image(x, mode='caffe'):
         x /= 32767.5
         x -= 1.
     elif mode == 'caffe':
-        if keras.backend.image_data_format() == 'channels_first':
-            if x.ndim == 3:
-                x[0, :, :] -= 103.939
-                x[1, :, :] -= 116.779
-                x[2, :, :] -= 123.68
-            else:
-                x[:, 0, :, :] -= 103.939
-                x[:, 1, :, :] -= 116.779
-                x[:, 2, :, :] -= 123.68
-        else:
-            x[..., 0] -= 935.8877
-            x[..., 1] -= 1002.0702
-            x[..., 2] -= 1243.3221
-            x[..., 3] -= 1586.7410
+        x[..., 0] -= 935.8877
+        x[..., 1] -= 1002.0702
+        x[..., 2] -= 1243.3221
+        x[..., 3] -= 1586.7410
 
     return x
 
@@ -115,7 +106,6 @@ class TransformParameters:
         fill_mode:             One of: 'constant', 'nearest', 'reflect', 'wrap'
         interpolation:         One of: 'nearest', 'linear', 'cubic', 'area', 'lanczos4'
         cval:                  Fill value to use with fill_mode='constant'
-        data_format:           Same as for keras.preprocessing.image.apply_transform
         relative_translation:  If true (the default), interpret translation as a factor of the image size.
                                If false, interpret it as absolute pixels.
     """
@@ -124,24 +114,12 @@ class TransformParameters:
         fill_mode            = 'nearest',
         interpolation        = 'linear',
         cval                 = 0,
-        data_format          = None,
         relative_translation = True,
     ):
         self.fill_mode            = fill_mode
         self.cval                 = cval
         self.interpolation        = interpolation
         self.relative_translation = relative_translation
-
-        if data_format is None:
-            data_format = keras.backend.image_data_format()
-        self.data_format = data_format
-
-        if data_format == 'channels_first':
-            self.channel_axis = 0
-        elif data_format == 'channels_last':
-            self.channel_axis = 2
-        else:
-            raise ValueError("invalid data_format, expected 'channels_first' or 'channels_last', got '{}'".format(data_format))
 
     def cvBorderMode(self):
         if self.fill_mode == 'constant':
@@ -180,9 +158,6 @@ def apply_transform(matrix, image, params):
       image:  The image to transform.
       params: The transform parameters (see TransformParameters)
     """
-    if params.channel_axis != 2:
-        image = np.moveaxis(image, params.channel_axis, 2)
-
     output = cv2.warpAffine(
         image,
         matrix[:2, :],
@@ -191,9 +166,6 @@ def apply_transform(matrix, image, params):
         borderMode  = params.cvBorderMode(),
         borderValue = params.cval,
     )
-
-    if params.channel_axis != 2:
-        output = np.moveaxis(output, 2, params.channel_axis)
     return output
 
 
