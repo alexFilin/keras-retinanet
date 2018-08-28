@@ -7,5 +7,5 @@ __pycache__/
 .idea/
 build/
 .eggs/
-keras_retinanet/log/
-
+log/
+snapshots/
