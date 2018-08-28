@@ -18,7 +18,6 @@ import keras
 from ..utils.eval import evaluate
 import time
 import numpy as np
-import operator
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -49,7 +48,7 @@ class Evaluate(keras.callbacks.Callback):
 
     def on_train_begin(self, logs=None):
         self.times = []
-        self.list_average_precisions = []
+        self.list_average_precisions = (0, [])
 
     def on_epoch_end(self, epoch, logs=None):
         start_time = time.time()
@@ -74,14 +73,15 @@ class Evaluate(keras.callbacks.Callback):
                 present_classes += 1
                 precision       += average_precision
         self.mean_ap = precision / present_classes
-        self.list_average_precisions.append((self.mean_ap, average_precisions))
+        if self.mean_ap > self.list_average_precisions[0]:
+            self.list_average_precisions = (self.mean_ap, average_precisions)
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
             import tensorflow as tf
             summary = tf.Summary()
             summary_value = summary.value.add()
             summary_value.simple_value = self.mean_ap
-            summary_value.tag = "mAP"
+            summary_value.tag = 'mAP'
             self.tensorboard.writer.add_summary(summary, epoch)
 
         logs['mAP'] = self.mean_ap
@@ -90,14 +90,11 @@ class Evaluate(keras.callbacks.Callback):
             print('mAP: {:.4f}'.format(self.mean_ap))
         eval_time = time.time() - start_time
         self.times.append(eval_time)
-        print("Evaluation time: {}".format(eval_time))
+        print('Evaluation time: {}'.format(eval_time))
 
     def on_train_end(self, logs=None):
-        print "Average evaluation time: {}".format(np.average(self.times))
-        print "Best classification results:"
-        get_first_item = operator.itemgetter(0)
-        self.list_average_precisions.sort(key=get_first_item, reverse=True)
-        best_map = self.list_average_precisions[0][1]
-        for label, (average_precision, num_annotations) in best_map.items():
+        print('Average evaluation time: {}'.format(np.average(self.times)))
+        print('Best classification results:')
+        for label, (average_precision, num_annotations) in self.list_average_precisions[1].items():
             print('{:.0f} instances of class'.format(num_annotations),
                   self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
