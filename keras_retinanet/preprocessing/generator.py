@@ -214,6 +214,7 @@ class Generator(object):
         if self.group_method == 'random':
             random.shuffle(order)
         elif self.group_method == 'ratio':
+            # TODO: Review this case
             # order.sort(key=lambda x: self.image_aspect_ratio(x))
             pass
 

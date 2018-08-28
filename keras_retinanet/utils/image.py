@@ -16,14 +16,10 @@ limitations under the License.
 
 from __future__ import division
 import keras
-import numpy as np
 import cv2
-from PIL import Image
-from osgeo import gdal
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
-import cv2
 
 
 def read_image_bgr(path):
