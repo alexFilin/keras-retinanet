@@ -36,7 +36,7 @@ if __name__ == "__main__" and __package__ is None:
 from .. import layers  # noqa: F401
 from .. import losses
 from .. import models
-from ..callbacks import RedirectModel, TimeHistory
+from ..callbacks import RedirectModel, TimeHistory, ScheduledFreeze
 from ..callbacks.eval import Evaluate
 from ..models.retinanet import retinanet_bbox
 from ..preprocessing.csv_generator import CSVGenerator
@@ -199,6 +199,22 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             monitor='mAP',
             patience=args.early_stopping,
             mode='max'
+        ))
+
+    if args.scheduled_freeze:
+        schedule = dict()
+        if args.backbone.startswith('resnet'):
+            schedule = {5: 'res5', 10: 'res4', 15: 'res3', 20: 'res2', 25: None}
+        elif args.backbone.startswith('mobilenet'):
+            schedule = {5: '_13', 8: '_12', 11: '_11', 14: '_10', 17: '_9', 20: '_8',
+                        23: '_7', 26: '_6', 29: '_5', 32: '_4', 35: '_3', 38: '_2', 41: None}
+        elif args.backbone.startswith('vgg'):
+            schedule = {5: 'block5', 10: 'block4', 15: 'block3', 20: 'block2', 25: None}
+        elif args.backbone.startswith('densenet'):
+            schedule = {5: 'conv5', 10: 'conv4', 15: 'conv3', 20: 'conv2', 25: None}
+        callbacks.append(ScheduledFreeze(
+            model=model,
+            schedule=schedule
         ))
 
     return callbacks
@@ -400,6 +416,7 @@ def parse_args(args):
     parser.add_argument('--no-snapshots',    help='Disable saving snapshots.', dest='snapshots', action='store_false')
     parser.add_argument('--no-evaluation',   help='Disable per epoch evaluation.', dest='evaluation', action='store_false')
     parser.add_argument('--freeze-backbone', help='Freeze training of backbone layers.', action='store_true')
+    parser.add_argument('--scheduled-freeze', help='Freeze backbone by schedule.', action='store_true')
     parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
     parser.add_argument('--lr-reduce',      help='Reduce learning rate when a metric has stopped improving', action='store_true')
     parser.add_argument('--early-stopping', help='Number of epoch for stop training when a monitored quantity has stopped improving', type=int, required=False)
@@ -442,6 +459,9 @@ def main(args=None):
         # default to imagenet if nothing else is specified
         if weights is None and args.imagenet_weights:
             weights = backbone.download_imagenet()
+
+        if args.scheduled_freeze:
+            args.freeze_backbone = True
 
         print('Creating model, this may take a second...')
         model, training_model, prediction_model = create_models(

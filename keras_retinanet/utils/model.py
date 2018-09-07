@@ -26,3 +26,34 @@ def freeze(model):
     for layer in model.layers:
         layer.trainable = False
     return model
+
+
+def unfreeze(model):
+    """ Set all layers in a model to trainable.
+
+    The weights for these layers will be updated during training.
+
+    This function modifies the given model in-place,
+    but it also returns the modified model to allow easy chaining with other functions.
+    """
+    for layer in model.layers:
+        layer.trainable = True
+    return model
+
+
+def unfreeze_from_block(model, block_id):
+    """ Set layers in a model to trainable from defined block name.
+
+    The weights for these layers will be updated during training.
+
+    This function modifies the given model in-place,
+    but it also returns the modified model to allow easy chaining with other functions.
+    """
+    trainable_flag = False
+    for layer in model.layers:
+        if trainable_flag:
+            layer.trainable = True
+        elif layer.name.find(block_id) != -1:
+            trainable_flag = True
+            layer.trainable = True
+    return model
