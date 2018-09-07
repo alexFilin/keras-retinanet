@@ -22,6 +22,8 @@ from skimage.io import imread
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
+import h5py
+import os
 
 
 def read_image_bgr(path):
@@ -44,6 +46,26 @@ def read_image_gdal(path):
 
 def read_image_gdal_simple(path):
     image_source = imread(path)
+    image_rgb = image_source[..., :3]
+    image_bgr = image_rgb[:, :, ::-1]
+    image_nir = image_source[..., 3:]
+    image = np.concatenate((image_bgr, image_nir), axis=2)
+    return image.copy()
+
+
+def read_image_hdf5(index, base_dir):
+    hdf5_path = os.path.join(base_dir, "dataset.hdf5")
+    hf = h5py.File(hdf5_path, 'r')
+    image = np.array(hf['data/images'][index])
+    geo = hf['data/geo'][index]
+    proj = hf['data/geo'].attrs['projection']
+    return image.copy(), (proj, geo)
+
+
+def read_image_hdf5_simple(index, base_dir):
+    hdf5_path = os.path.join(base_dir, "dataset.hdf5")
+    hf = h5py.File(hdf5_path, 'r')
+    image_source = np.array(hf['data/images'][index])
     image_rgb = image_source[..., :3]
     image_bgr = image_rgb[:, :, ::-1]
     image_nir = image_source[..., 3:]

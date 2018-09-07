@@ -118,6 +118,11 @@ class Generator(object):
         """
         pass
 
+    def load_image_hdf5_simple(self, image_index):
+        """ Load an image at the image_index.
+        """
+        pass
+
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
         """
@@ -159,7 +164,7 @@ class Generator(object):
     def load_image_group(self, group):
         """ Load images for all images in a group.
         """
-        return [self.load_image_gdal_simple(image_index) for image_index in group]
+        return [self.load_image_hdf5_simple(image_index) for image_index in group]
         # return [self.load_image(image_index) for image_index in group]
 
     def random_transform_group_entry(self, image, annotations):

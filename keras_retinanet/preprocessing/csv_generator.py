@@ -16,7 +16,7 @@ limitations under the License.
 """
 
 from .generator import Generator
-from ..utils.image import read_image_bgr, read_image_gdal, read_image_gdal_simple
+from ..utils.image import read_image_bgr, read_image_gdal, read_image_gdal_simple, read_image_hdf5_simple, read_image_hdf5
 
 import numpy as np
 from PIL import Image
@@ -204,7 +204,17 @@ class CSVGenerator(Generator):
     def load_image_gdal_simple(self, image_index):
         """ Load an image at the image_index.
         """
-        return read_image_gdal_simple(self.image_path(image_index))
+        return read_image_gdal(self.image_path(image_index))
+
+    def load_image_hdf5_simple(self, image_index):
+        """ Load an image at the image_index.
+        """
+        return read_image_hdf5_simple(image_index, self.base_dir)
+
+    def load_image_hdf5(self, image_index):
+        """ Load an image at the image_index.
+        """
+        return read_image_hdf5(image_index, self.base_dir)
 
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
