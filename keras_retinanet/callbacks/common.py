@@ -1,5 +1,8 @@
 import keras.callbacks
 import time
+from .. import losses
+from ..utils.model import unfreeze as unfreeze_model
+from ..utils.model import unfreeze_from_block as unfreeze_model_from_block
 
 
 class TimeHistory(keras.callbacks.Callback):
@@ -13,6 +16,31 @@ class TimeHistory(keras.callbacks.Callback):
         epoch_time = time.time() - self.epoch_time_start
         self.times.append(epoch_time)
         print("Epoch time: {}".format(epoch_time))
+
+
+class ScheduledFreeze(keras.callbacks.Callback):
+    def __init__(self, model, schedule):
+        super(ScheduledFreeze, self).__init__()
+
+        self.model = model
+        self.schedule = schedule
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if epoch in self.schedule:
+            block_id = self.schedule[epoch]
+            if block_id is None:
+                self.model = unfreeze_model(self.model)
+            else:
+                self.model = unfreeze_model_from_block(self.model, block_id)
+
+            self.model.compile(
+                loss={
+                    'regression': losses.smooth_l1(),
+                    'classification': losses.focal()
+                },
+                optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
+            )
+            print(self.model.summary())
 
 
 class RedirectModel(keras.callbacks.Callback):
