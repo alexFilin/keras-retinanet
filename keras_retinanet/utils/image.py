@@ -57,9 +57,11 @@ def read_image_hdf5(index, base_dir):
     hdf5_path = os.path.join(base_dir, "dataset.hdf5")
     hf = h5py.File(hdf5_path, 'r')
     image = np.array(hf['data/images'][index])
+    image_rgb = image[..., :3]
+    image_bgr = image_rgb[:, :, ::-1]
     geo = hf['data/geo'][index]
     proj = hf['data/geo'].attrs['projection']
-    return image.copy(), (proj, geo)
+    return image_bgr.copy(), (proj, geo)
 
 
 def read_image_hdf5_simple(index, base_dir):
