@@ -19,6 +19,8 @@ import keras
 import numpy as np
 import cv2
 from skimage.io import imread
+from affine import Affine
+from rasterio.crs import CRS
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
@@ -60,8 +62,10 @@ def read_image_hdf5(index, base_dir):
     image_rgb = image[..., :3]
     image_bgr = image_rgb[:, :, ::-1]
     geo = hf['data/geo'][index]
-    proj = hf['data/geo'].attrs['projection']
-    return image_bgr.copy(), (proj, geo)
+    epsg = hf['data/geo'].attrs['epsg']
+    affine = Affine.from_gdal(*geo)
+    crs = CRS.from_epsg(epsg)
+    return image_bgr.copy(), crs, affine
 
 
 def read_image_hdf5_simple(index, base_dir):

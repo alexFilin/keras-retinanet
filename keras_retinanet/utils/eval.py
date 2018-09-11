@@ -23,8 +23,7 @@ import keras
 import numpy as np
 import os
 
-import cv2
-from dsel.my_io import save_np_using_gdal
+import rasterio
 from dsel.rendering import rendering
 
 
@@ -111,7 +110,16 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
             draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name)
 
-            save_np_using_gdal(os.path.join(save_path, '{}.TIF'.format(i)), raw_image[:, :, ::-1], geo_info=image[1])
+            new_dataset = rasterio.open(os.path.join(save_path, '{}.TIF'.format(i)), 'w', driver='GTiff',
+                                        height=raw_image.shape[0], width=raw_image.shape[1],
+                                        count=3, dtype=str(raw_image.dtype),
+                                        crs=image[1],
+                                        transform=image[2])
+
+            new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
+            new_dataset.close()
+
+            # save_np_using_gdal(os.path.join(save_path, '{}.TIF'.format(i)), raw_image[:, :, ::-1], geo_info=image[1])
             # cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
 
         # copy detections to all_detections

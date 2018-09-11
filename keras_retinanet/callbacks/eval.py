@@ -73,7 +73,7 @@ class Evaluate(keras.callbacks.Callback):
                 present_classes += 1
                 precision       += average_precision
         self.mean_ap = precision / present_classes
-        if self.mean_ap > self.list_average_precisions[0]:
+        if self.mean_ap >= self.list_average_precisions[0]:
             self.list_average_precisions = (self.mean_ap, average_precisions)
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
