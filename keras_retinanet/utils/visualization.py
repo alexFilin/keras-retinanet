@@ -33,7 +33,7 @@ def draw_box(image, box, color, thickness=2):
     cv2.rectangle(image, (b[0], b[1]), (b[2], b[3]), color, thickness, cv2.LINE_AA)
 
 
-def draw_caption(image, box, caption):
+def draw_caption(image, caption, position):
     # TODO: change placement
     """ Draws a caption above the box in an image.
 
@@ -42,9 +42,8 @@ def draw_caption(image, box, caption):
         box     : A list of 4 elements (x1, y1, x2, y2).
         caption : String containing the text to draw.
     """
-    b = np.array(box).astype(int)
-    cv2.putText(image, caption, (b[0] + 5, b[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 4)
-    cv2.putText(image, caption, (b[0] + 5, b[1] + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+    cv2.putText(image, caption, position, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 4)
+    cv2.putText(image, caption, position, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
 
 
 def draw_boxes(image, boxes, color, thickness=2):
@@ -80,7 +79,11 @@ def draw_detections(image, boxes, scores, labels, color=None, label_to_name=None
 
         # draw labels
         caption = (label_to_name(labels[i]) if label_to_name else labels[i]) + ': {0:.2f}'.format(scores[i])
-        draw_caption(image, boxes[i, :], caption)
+
+        b = np.array(boxes[i, :]).astype(int)
+        position = (b[0] + 5, b[3] - 5)
+
+        draw_caption(image, caption, position)
 
 
 def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
@@ -97,7 +100,11 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
         c       = color if color is not None else label_color(label)
         caption = '{}'.format(label_to_name(label) if label_to_name else label)
         # caption = ""
-        draw_caption(image, a, caption)
+
+        b = np.array(a).astype(int)
+        position = (b[0] + 5, b[1] + 20)
+
+        draw_caption(image, caption, position)
 
         draw_box(image, a, color=c)
 
