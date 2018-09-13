@@ -52,6 +52,8 @@ class ResNetBackbone(Backbone):
             checksum = '05dc86924389e5b401a9ea0348a3213c'
         elif depth == 152:
             checksum = '6ee11ef2b135592f8031058820bb9e71'
+        else:
+            raise NotImplementedError('download_imagenet method not implemented.')
 
         return get_file(
             filename,
@@ -63,7 +65,7 @@ class ResNetBackbone(Backbone):
     def validate(self):
         """ Checks whether the backbone string is correct.
         """
-        allowed_backbones = ['resnet50', 'resnet101', 'resnet152']
+        allowed_backbones = ['resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152']
         backbone = self.backbone.split('_')[0]
 
         if backbone not in allowed_backbones:
@@ -95,7 +97,11 @@ def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=Non
             inputs = keras.layers.Input(shape=(None, None, 3))
 
     # create the resnet backbone
-    if backbone == 'resnet50':
+    if backbone == 'resnet18':
+        resnet = keras_resnet.models.ResNet18(inputs, include_top=False, freeze_bn=True)
+    elif backbone == 'resnet34':
+        resnet = keras_resnet.models.ResNet34(inputs, include_top=False, freeze_bn=True)
+    elif backbone == 'resnet50':
         resnet = keras_resnet.models.ResNet50(inputs, include_top=False, freeze_bn=True)
     elif backbone == 'resnet101':
         resnet = keras_resnet.models.ResNet101(inputs, include_top=False, freeze_bn=True)
@@ -110,6 +116,14 @@ def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=Non
 
     # create the full model
     return retinanet.retinanet(inputs=inputs, num_classes=num_classes, backbone_layers=resnet.outputs[1:], **kwargs)
+
+
+def resnet18_retinanet(num_classes, inputs=None, **kwargs):
+    return resnet_retinanet(num_classes=num_classes, backbone='resnet18', inputs=inputs, **kwargs)
+
+
+def resnet34_retinanet(num_classes, inputs=None, **kwargs):
+    return resnet_retinanet(num_classes=num_classes, backbone='resnet34', inputs=inputs, **kwargs)
 
 
 def resnet50_retinanet(num_classes, inputs=None, **kwargs):
