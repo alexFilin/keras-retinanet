@@ -59,7 +59,7 @@ def draw_boxes(image, boxes, color, thickness=2):
         draw_box(image, b, color, thickness=thickness)
 
 
-def draw_detections(image, boxes, scores, labels, color=None, label_to_name=None, score_threshold=0.5):
+def draw_detections(image, boxes, scores, labels, color=None, label_to_name=None):
     """ Draws detections in an image.
 
     # Arguments
@@ -69,18 +69,16 @@ def draw_detections(image, boxes, scores, labels, color=None, label_to_name=None
         labels          : A list of N labels.
         color           : The color of the boxes. By default the color from keras_retinanet.utils.colors.label_color will be used.
         label_to_name   : (optional) Functor for mapping a label to a name.
-        score_threshold : Threshold used for determining what detections to draw.
     """
-    selection = np.where(scores > score_threshold)[0]
 
-    for i in selection:
-        c = color if color is not None else label_color(labels[i])
-        draw_box(image, boxes[i, :], color=c)
+    for label, box, score in zip(labels, boxes, scores):
+        c = color if color is not None else label_color(label)
+        draw_box(image, box, color=c)
 
         # draw labels
-        caption = (label_to_name(labels[i]) if label_to_name else labels[i]) + ': {0:.2f}'.format(scores[i])
+        caption = (label_to_name(label) if label_to_name else label) + ': {0:.2f}'.format(score)
 
-        b = np.array(boxes[i, :]).astype(int)
+        b = np.array(box).astype(int)
         position = (b[0] + 5, b[3] - 5)
 
         draw_caption(image, caption, position)
