@@ -53,6 +53,8 @@ def backbone(backbone_name):
         from .vgg import VGGBackbone as b
     elif 'densenet' in backbone_name:
         from .densenet import DenseNetBackbone as b
+    elif 'lenet' in backbone_name:
+        from .lenet import LeNetBackbone as b
     else:
         raise NotImplementedError('Backbone class for  \'{}\' not implemented.'.format(backbone))
 
