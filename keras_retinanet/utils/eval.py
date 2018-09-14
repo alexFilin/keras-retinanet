@@ -57,7 +57,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None, detect_threshold=0.5):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -69,6 +69,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         score_threshold : The score confidence threshold to use.
         max_detections  : The maximum number of detections to use per image.
         save_path       : The path to save the images with visualized detections to.
+        detect_threshold : Threshold used for determining what detections to draw.
     # Returns
         A list of lists containing the detections for each image in the generator.
     """
@@ -107,11 +108,16 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             image = generator.load_image_gdal(i)
             raw_image = image[0]
             raw_image = rendering(raw_image, r_type = 'CUM_CUT')
-            draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
-            draw_detections(raw_image, image_boxes, image_scores, image_labels, label_to_name=generator.label_to_name)
+            selection = np.where(scores > detect_threshold)[0]
 
-            save_np_using_gdal(os.path.join(save_path, '{}.TIF'.format(i)), raw_image[:, :, ::-1], geo_info=image[1])
-            # cv2.imwrite(os.path.join(save_path, '{}.png'.format(i)), raw_image)
+            draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
+            draw_detections(raw_image, image_boxes[selection], image_scores[selection], image_labels[selection],
+                            label_to_name=generator.label_to_name)
+
+            filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
+                                             str(np.around(np.mean(image_scores[selection]), decimals=2)))
+            # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
+            cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
