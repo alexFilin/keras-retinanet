@@ -218,20 +218,17 @@ class Generator(object):
             # order.sort(key=lambda x: self.image_aspect_ratio(x))
             # pass
         elif self.group_method == 'balance':
-            from collections import Counter
             image_classes = []
-
             for i, (key, value) in enumerate(self.image_data.iteritems()):
-                c = Counter()
+                max_area = ('', 0)
                 for item in value:
                     area = (item['x2'] - item['x1']) * (item['y2'] - item['y1'])
-                    if c[item["class"]] < area:
-                        c[item["class"]] = area
+                    if max_area[1] < area:
+                        max_area = (item["class"], area)
                 if len(value) == 0:
                     image_classes.append(("Empty", i))
                 else:
-                    most_common = c.most_common(1)[0][0]
-                    image_classes.append((most_common, i))
+                    image_classes.append((max_area[0], i))
 
             classes_names = self.classes.keys()
             classes_names.append("Empty")
@@ -246,7 +243,7 @@ class Generator(object):
                     if len(data[y]) > 0:
                         order.append(data[y][0][1])
                         data[y].remove(data[y][0])
-                        lens = sum([len(x) for x in values])
+                lens = sum([len(x) for x in values])
 
         # divide into groups, one group = one batch
         self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in
