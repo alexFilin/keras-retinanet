@@ -64,8 +64,38 @@ def _compute_ap(recall, precision):
 
 
 def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry_type):
+    """Create vector layer with bounding boxes or centroids.
 
+    Args:
+        path_to_save : str
+            The file name with full path to vector.
+        generator : keras_retinanet.preprocessing.csv_generator.CSVGenerator
+            The generator used to run images through the model.
+        bboxes : np.ndarray[np.ndarray[np.float32]]
+            The [N, 4] matrix (x1, y1, x2, y2) with bounding box coordinates.
+        labels : np.ndarray[np.int32]
+            The array of N labels.
+        scores : np.ndarray[np.float32]
+            The array of N scores.
+        proj : tuple(str, tuple(float))
+            SpatialReferenceSystem, GeoTransform
+        geometry_type : str
+            The type of geometry to save in geojson.
+
+    """
     def _get_geometry_from_bbox(bbox, geom_type, geo_transform):
+        """Create two shapely.geometry objects Polygon, Point from bounding box.
+
+        Args:
+            bbox : np.ndarray[np.float32]
+                The array of bounding box coordinates [x1, y1, x2, y2].
+            geo_transform : tuple(float)
+                The GeoTransform params.
+
+        Returns: any[shapely.geometry.Polygon, shapely.geometry.Point]
+            The vectorized bounding box or centroid for bbox.
+
+        """
         ulx, uly = pixel2world(bbox[0:2], geo_transform)
         rdx, rdy = pixel2world(bbox[2:], geo_transform)
         polygon = Polygon([(ulx, uly), (rdx, uly), (rdx, rdy), (ulx, rdy), (ulx, uly)])
