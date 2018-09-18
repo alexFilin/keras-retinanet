@@ -285,6 +285,7 @@ def create_generators(args, preprocess_image):
             args.annotations,
             args.classes,
             transform_generator=transform_generator,
+            group_method=args.group_method,
             **common_args
         )
 
@@ -292,6 +293,7 @@ def create_generators(args, preprocess_image):
             validation_generator = CSVGenerator(
                 args.val_annotations,
                 args.classes,
+                group_method=args.group_method,
                 **common_args
             )
         else:
@@ -422,7 +424,7 @@ def parse_args(args):
     parser.add_argument('--early-stopping', help='Number of epoch for stop training when a monitored quantity has stopped improving', type=int, required=False)
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int, default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
-
+    parser.add_argument('--group-method', help='Determines how images are grouped together.', type=str, default='ratio', choices=['random', 'ratio', 'balance'])
     return check_args(parser.parse_args(args))
 
 

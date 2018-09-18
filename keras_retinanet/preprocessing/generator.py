@@ -210,16 +210,47 @@ class Generator(object):
         """ Order the images according to self.order and makes groups of self.batch_size.
         """
         # determine the order of the images
-        order = list(range(self.size()))
         if self.group_method == 'random':
+            order = list(range(self.size()))
             random.shuffle(order)
         elif self.group_method == 'ratio':
-            # TODO: Review this case
+            order = list(range(self.size()))
             # order.sort(key=lambda x: self.image_aspect_ratio(x))
-            pass
+            # pass
+        elif self.group_method == 'balance':
+            from collections import Counter
+            image_classes = []
+
+            for i, (key, value) in enumerate(self.image_data.iteritems()):
+                c = Counter()
+                for item in value:
+                    area = (item['x2'] - item['x1']) * (item['y2'] - item['y1'])
+                    if c[item["class"]] < area:
+                        c[item["class"]] = area
+                if len(value) == 0:
+                    image_classes.append(("Empty", i))
+                else:
+                    most_common = c.most_common(1)[0][0]
+                    image_classes.append((most_common, i))
+
+            classes_names = self.classes.keys()
+            classes_names.append("Empty")
+
+            data = {y: filter(lambda z: z[0] == y, image_classes) for y in classes_names}
+            values = data.values()
+            lens = sum([len(x) for x in values])
+            order = []
+            while lens > 0:
+                np.random.shuffle(classes_names)
+                for y in classes_names:
+                    if len(data[y]) > 0:
+                        order.append(data[y][0][1])
+                        data[y].remove(data[y][0])
+                        lens = sum([len(x) for x in values])
 
         # divide into groups, one group = one batch
-        self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
+        self.groups = [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in
+                       range(0, len(order), self.batch_size)]
 
     def compute_inputs(self, image_group):
         """ Compute inputs for the network using an image_group.

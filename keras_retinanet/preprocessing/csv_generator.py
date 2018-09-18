@@ -120,6 +120,7 @@ class CSVGenerator(Generator):
         self,
         csv_data_file,
         csv_class_file,
+        group_method='ratio',
         base_dir=None,
         **kwargs
     ):
@@ -128,6 +129,7 @@ class CSVGenerator(Generator):
         Args
             csv_data_file: Path to the CSV annotations file.
             csv_class_file: Path to the CSV classes file.
+            group_method : Determines how images are grouped together.
             base_dir: Directory w.r.t. where the files are to be searched (defaults to the directory containing the csv_data_file).
         """
         self.image_names = []
@@ -157,7 +159,7 @@ class CSVGenerator(Generator):
             raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_data_file, e)), None)
         self.image_names = list(self.image_data.keys())
 
-        super(CSVGenerator, self).__init__(**kwargs)
+        super(CSVGenerator, self).__init__(group_method=group_method, **kwargs)
 
     def size(self):
         """ Size of the dataset.
