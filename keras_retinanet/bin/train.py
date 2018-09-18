@@ -191,7 +191,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             verbose  = 1,
             mode     = 'max',
             epsilon  = 0.0001,
-            cooldown = 0,
+            cooldown = args.lr_cooldown,
             min_lr   = 0
         ))
     if args.early_stopping:
@@ -419,6 +419,7 @@ def parse_args(args):
     parser.add_argument('--scheduled-freeze', help='Freeze backbone by schedule.', action='store_true')
     parser.add_argument('--random-transform', help='Randomly transform image and annotations.', action='store_true')
     parser.add_argument('--lr-reduce',      help='Reduce learning rate when a metric has stopped improving', action='store_true')
+    parser.add_argument('--lr-cooldown',    help='Cooldown learning rate value during the studying process', type=int, required=False, default=0)
     parser.add_argument('--early-stopping', help='Number of epoch for stop training when a monitored quantity has stopped improving', type=int, required=False)
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int, default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
