@@ -34,7 +34,6 @@ def draw_box(image, box, color, thickness=2):
 
 
 def draw_caption(image, caption, position):
-    # TODO: change placement
     """ Draws a caption above the box in an image.
 
     # Arguments
