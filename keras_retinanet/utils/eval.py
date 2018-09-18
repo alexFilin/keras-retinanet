@@ -24,8 +24,14 @@ import numpy as np
 import os
 
 import cv2
+import osr
+import geopandas
+from fiona.crs import from_epsg
 from dsel.my_io import save_np_using_gdal
+from dsel.geo import pixel2world
 from dsel.rendering import rendering
+from shapely.geometry import Polygon, Point, mapping
+from geojson import Feature, dump
 
 
 def _compute_ap(recall, precision):
@@ -57,7 +63,63 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None, detect_threshold=0.5):
+def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry_type):
+    """Create vector layer with bounding boxes or centroids.
+
+    Args:
+        path_to_save : str
+            The file name with full path to vector.
+        generator : keras_retinanet.preprocessing.csv_generator.CSVGenerator
+            The generator used to run images through the model.
+        bboxes : np.ndarray[np.ndarray[np.float32]]
+            The [N, 4] matrix (x1, y1, x2, y2) with bounding box coordinates.
+        labels : np.ndarray[np.int32]
+            The array of N labels.
+        scores : np.ndarray[np.float32]
+            The array of N scores.
+        proj : tuple(str, tuple(float))
+            SpatialReferenceSystem, GeoTransform
+        geometry_type : str
+            The type of geometry to save in geojson.
+
+    """
+    def _get_geometry_from_bbox(bbox, geom_type, geo_transform):
+        """Create two shapely.geometry objects Polygon, Point from bounding box.
+
+        Args:
+            bbox : np.ndarray[np.float32]
+                The array of bounding box coordinates [x1, y1, x2, y2].
+            geo_transform : tuple(float)
+                The GeoTransform params.
+
+        Returns: any[shapely.geometry.Polygon, shapely.geometry.Point]
+            The vectorized bounding box or centroid for bbox.
+
+        """
+        ulx, uly = pixel2world(bbox[0:2], geo_transform)
+        rdx, rdy = pixel2world(bbox[2:], geo_transform)
+        polygon = Polygon([(ulx, uly), (rdx, uly), (rdx, rdy), (ulx, rdy), (ulx, uly)])
+        if geom_type.lower() == 'polygon':
+            return polygon
+        elif geom_type.lower() == 'point':
+            return Point(polygon.centroid)
+        raise ValueError('Unknown geometry type: {}'.format(geom_type))
+
+    features = []
+    for box, label, score in zip(bboxes, labels, scores):
+        geometry = _get_geometry_from_bbox(box, geometry_type, proj[1])
+        class_name = generator.label_to_name(label)
+        features.append(Feature(geometry=geometry, properties={'class': class_name, 'score': float(score)}))
+
+    epsg_code = osr.SpatialReference(wkt=proj[0]).GetAttrValue('AUTHORITY', 1)
+    filename = os.path.join(path_to_save+'_{}s.geojson'.format(geometry_type))
+    if os.path.exists(filename):
+        os.remove(filename)
+    geopandas.GeoDataFrame.from_features(features, crs=from_epsg(epsg_code)).to_file(filename, driver='GeoJSON')
+
+
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
+                    save_path=None, detect_threshold=0.5, geom_types=None):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -115,9 +177,15 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
                             label_to_name=generator.label_to_name)
 
             filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
-                                             str(np.around(np.mean(image_scores[selection]), decimals=2)))
-            # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
-            cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
+                                         str(np.around(np.mean(image_scores[selection]), decimals=2)))
+
+            if geom_types and len(image_boxes[selection]) != 0:
+                for geom_type in geom_types:
+                    _save_vector(os.path.join(save_path, filename), generator, image_boxes[selection],
+                                 image_labels[selection], image_scores[selection], image[1], geom_type)
+
+            save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
+            # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
@@ -160,7 +228,8 @@ def evaluate(
     iou_threshold=0.5,
     score_threshold=0.05,
     max_detections=100,
-    save_path=None
+    save_path=None,
+    vector_types=None
 ):
     """ Evaluate a given dataset using a given model.
 
@@ -175,7 +244,8 @@ def evaluate(
         A dict mapping class names to mAP scores.
     """
     # gather all detections and annotations
-    all_detections     = _get_detections(generator, model, score_threshold=score_threshold, max_detections=max_detections, save_path=save_path)
+    all_detections     = _get_detections(generator, model, score_threshold=score_threshold,
+                                         max_detections=max_detections, save_path=save_path, geom_types=vector_types)
     all_annotations    = _get_annotations(generator)
     average_precisions = {}
 
