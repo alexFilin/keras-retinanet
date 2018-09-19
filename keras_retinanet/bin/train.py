@@ -232,6 +232,7 @@ def create_generators(args, preprocess_image):
         'image_min_side'   : args.image_min_side,
         'image_max_side'   : args.image_max_side,
         'preprocess_image' : preprocess_image,
+        'group_method'     : args.group_method
     }
 
     # create random transform generator for augmenting training data
@@ -285,7 +286,6 @@ def create_generators(args, preprocess_image):
             args.annotations,
             args.classes,
             transform_generator=transform_generator,
-            group_method=args.group_method,
             **common_args
         )
 
@@ -293,7 +293,6 @@ def create_generators(args, preprocess_image):
             validation_generator = CSVGenerator(
                 args.val_annotations,
                 args.classes,
-                group_method=args.group_method,
                 **common_args
             )
         else:

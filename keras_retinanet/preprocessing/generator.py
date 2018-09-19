@@ -221,14 +221,14 @@ class Generator(object):
             image_classes = []
             for i, (key, value) in enumerate(self.image_data.iteritems()):
                 max_area = ('', 0)
+                if len(value) == 0:
+                    image_classes.append(("Empty", i))
+                    continue
                 for item in value:
                     area = (item['x2'] - item['x1']) * (item['y2'] - item['y1'])
                     if max_area[1] < area:
                         max_area = (item["class"], area)
-                if len(value) == 0:
-                    image_classes.append(("Empty", i))
-                else:
-                    image_classes.append((max_area[0], i))
+                image_classes.append((max_area[0], i))
 
             classes_names = self.classes.keys()
             classes_names.append("Empty")

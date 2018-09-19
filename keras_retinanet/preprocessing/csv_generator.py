@@ -120,7 +120,6 @@ class CSVGenerator(Generator):
         self,
         csv_data_file,
         csv_class_file,
-        group_method='ratio',
         base_dir=None,
         **kwargs
     ):
@@ -159,7 +158,7 @@ class CSVGenerator(Generator):
             raise_from(ValueError('invalid CSV annotations file: {}: {}'.format(csv_data_file, e)), None)
         self.image_names = list(self.image_data.keys())
 
-        super(CSVGenerator, self).__init__(group_method=group_method, **kwargs)
+        super(CSVGenerator, self).__init__(**kwargs)
 
     def size(self):
         """ Size of the dataset.
