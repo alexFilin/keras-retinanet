@@ -128,7 +128,6 @@ class CSVGenerator(Generator):
         Args
             csv_data_file: Path to the CSV annotations file.
             csv_class_file: Path to the CSV classes file.
-            group_method : Determines how images are grouped together.
             base_dir: Directory w.r.t. where the files are to be searched (defaults to the directory containing the csv_data_file).
         """
         self.image_names = []
