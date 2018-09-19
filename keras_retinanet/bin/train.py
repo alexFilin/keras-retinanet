@@ -232,6 +232,7 @@ def create_generators(args, preprocess_image):
         'image_min_side'   : args.image_min_side,
         'image_max_side'   : args.image_max_side,
         'preprocess_image' : preprocess_image,
+        'group_method'     : args.group_method
     }
 
     # create random transform generator for augmenting training data
@@ -423,7 +424,7 @@ def parse_args(args):
     parser.add_argument('--early-stopping', help='Number of epoch for stop training when a monitored quantity has stopped improving', type=int, required=False)
     parser.add_argument('--image-min-side', help='Rescale the image so the smallest side is min_side.', type=int, default=800)
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
-
+    parser.add_argument('--group-method', help='Determines how images are grouped together.', type=str, default='ratio', choices=['random', 'ratio', 'balance'])
     return check_args(parser.parse_args(args))
 
 
