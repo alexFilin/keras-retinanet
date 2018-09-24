@@ -20,6 +20,7 @@ import cv2
 
 from .transform import change_transform_origin
 from dsel.my_io import load_image
+import rasterio
 
 
 def read_image_bgr(path):
@@ -38,6 +39,12 @@ def read_image_gdal(path):
     image_source = load_image(path)
     image = image_source[0][:3, ...].transpose([1, 2, 0])
     return image[:, :, ::-1].copy(), image_source[1]
+
+
+def read_image_rasterio(path):
+    image_source = rasterio.open(path)
+    image_rgb = image_source.read()[:3, ...].transpose([1, 2, 0])
+    return image_rgb[:, :, ::-1].copy(), image_source.crs, image_source.transform
 
 
 def preprocess_image(x, mode='caffe'):

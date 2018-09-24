@@ -24,14 +24,13 @@ import numpy as np
 import os
 
 import cv2
-import osr
+import rasterio
 import geopandas
-from fiona.crs import from_epsg
 from dsel.my_io import save_np_using_gdal
-from dsel.geo import pixel2world
 from dsel.rendering import rendering
-from shapely.geometry import Polygon, Point, mapping
+from shapely.geometry import Polygon, Point
 from geojson import Feature, dump
+from rasterio.transform import xy
 
 
 def _compute_ap(recall, precision):
@@ -63,7 +62,7 @@ def _compute_ap(recall, precision):
     return ap
 
 
-def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry_type):
+def _save_vector(path_to_save, generator, bboxes, labels, scores, transform, geometry_type, crs):
     """Create vector layer with bounding boxes or centroids.
 
     Args:
@@ -77,10 +76,12 @@ def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry
             The array of N labels.
         scores : np.ndarray[np.float32]
             The array of N scores.
-        proj : tuple(str, tuple(float))
-            SpatialReferenceSystem, GeoTransform
+        transform : affine.Affine
+            Transformation from pixel coordinates to coordinate reference system.
         geometry_type : str
             The type of geometry to save in geojson.
+        crs : dict
+            Coordinate Reference System.
 
     """
     def _get_geometry_from_bbox(bbox, geom_type, geo_transform):
@@ -96,8 +97,8 @@ def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry
             The vectorized bounding box or centroid for bbox.
 
         """
-        ulx, uly = pixel2world(bbox[0:2], geo_transform)
-        rdx, rdy = pixel2world(bbox[2:], geo_transform)
+        ulx, uly = xy(geo_transform, bbox[1], bbox[0])
+        rdx, rdy = xy(geo_transform, bbox[3], bbox[2])
         polygon = Polygon([(ulx, uly), (rdx, uly), (rdx, rdy), (ulx, rdy), (ulx, uly)])
         if geom_type.lower() == 'polygon':
             return polygon
@@ -107,15 +108,14 @@ def _save_vector(path_to_save, generator, bboxes, labels, scores, proj, geometry
 
     features = []
     for box, label, score in zip(bboxes, labels, scores):
-        geometry = _get_geometry_from_bbox(box, geometry_type, proj[1])
+        geometry = _get_geometry_from_bbox(box, geometry_type, transform)
         class_name = generator.label_to_name(label)
         features.append(Feature(geometry=geometry, properties={'class': class_name, 'score': float(score)}))
 
-    epsg_code = osr.SpatialReference(wkt=proj[0]).GetAttrValue('AUTHORITY', 1)
     filename = os.path.join(path_to_save+'_{}s.geojson'.format(geometry_type))
     if os.path.exists(filename):
         os.remove(filename)
-    geopandas.GeoDataFrame.from_features(features, crs=from_epsg(epsg_code)).to_file(filename, driver='GeoJSON')
+    geopandas.GeoDataFrame.from_features(features, crs=crs).to_file(filename, driver='GeoJSON')
 
 
 def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
@@ -167,7 +167,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
         if save_path is not None:
-            image = generator.load_image_gdal(i)
+            image = generator.load_image_rasterio(i)
             raw_image = image[0]
             raw_image = rendering(raw_image, r_type = 'CUM_CUT')
             selection = np.where(scores > detect_threshold)[0]
@@ -182,9 +182,15 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
             if geom_types and len(image_boxes[selection]) != 0:
                 for geom_type in geom_types:
                     _save_vector(os.path.join(save_path, filename), generator, image_boxes[selection],
-                                 image_labels[selection], image_scores[selection], image[1], geom_type)
+                                 image_labels[selection], image_scores[selection], image[2], geom_type, image[1])
 
-            save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
+            new_dataset = rasterio.open(os.path.join(save_path, filename+'.TIF'), 'w', driver='GTiff',
+                                        height=raw_image.shape[0], width=raw_image.shape[1], count=3,
+                                        dtype=str(raw_image.dtype), crs=image[1], transform=image[2])
+
+            new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
+            new_dataset.close()
+            # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
             # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
         # copy detections to all_detections

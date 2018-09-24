@@ -16,7 +16,7 @@ limitations under the License.
 """
 
 from .generator import Generator
-from ..utils.image import read_image_bgr, read_image_gdal
+from ..utils.image import read_image_bgr, read_image_gdal, read_image_rasterio
 
 import numpy as np
 from PIL import Image
@@ -200,6 +200,11 @@ class CSVGenerator(Generator):
         """ Load an image at the image_index.
         """
         return read_image_gdal(self.image_path(image_index))
+
+    def load_image_rasterio(self, image_index):
+        """ Load an image at the image_index.
+        """
+        return read_image_rasterio(self.image_path(image_index))
 
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.
