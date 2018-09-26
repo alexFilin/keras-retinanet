@@ -113,14 +113,13 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
         class_name = generator.label_to_name(label)
         features.append(Feature(geometry=geometry, properties={'class': class_name, 'score': float(score)}))
 
-    # filename = os.path.join(path_to_save+'_{}s.geojson'.format(geometry_type))
     if os.path.exists(filename):
         os.remove(filename)
     geopandas.GeoDataFrame.from_features(features, crs=crs).to_file(filename, driver='GeoJSON')
 
 
 def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
-                    save_path=None, detect_threshold=0.5, geom_types=None, draw_boxes=None):
+                    save_path=None, detect_threshold=0.5, geom_types=None, draw_boxes=False):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -137,6 +136,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
         A list of lists containing the detections for each image in the generator.
     """
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
+
+    if save_path is not None:
+        dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
+        map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
 
     with tqdm.tqdm(total=generator.size()) as bar:
         for i in range(generator.size()):
@@ -193,9 +196,6 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
                     # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
                 if geom_types and len(image_boxes[selection]) != 0:
-                    dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
-                    map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
-
                     for g_type, dir_name in zip(geom_types, dir_names):
                         fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
                         _save_vector(fn, generator, image_boxes[selection], image_labels[selection],
