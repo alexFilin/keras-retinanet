@@ -110,6 +110,7 @@ def parse_args(args):
     parser.add_argument('--image-max-side',  help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
     parser.add_argument('--save-vector',     help='List of geometry types to save vector.', nargs='+', type=str, default=None, choices=['polygon', 'point'])
     parser.add_argument('--weighted-average',   help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
+    parser.add_argument('--draw-boxes',      help='Draw and save resulting bounding boxes on images.', action='store_true')
 
     return parser.parse_args(args)
 
@@ -155,7 +156,8 @@ def main(args=None):
             score_threshold=args.score_threshold,
             max_detections=args.max_detections,
             save_path=args.save_path,
-            vector_types=args.save_vector
+            vector_types=args.save_vector,
+            draw_boxes=args.draw_boxes
         )
 
         # print evaluation
