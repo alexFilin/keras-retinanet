@@ -173,7 +173,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
 
             if save_path is not None:
                 image = generator.load_image_rasterio(i)
-                selection = np.where(scores > detect_threshold)[0]
+                selection = np.where(image_scores > detect_threshold)[0]
 
                 filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
                                              str(np.around(np.mean(image_scores[selection]), decimals=2)))
