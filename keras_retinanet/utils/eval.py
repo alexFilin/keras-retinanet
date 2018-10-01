@@ -120,7 +120,7 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
 
 
 def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
-                    save_path=None, detect_threshold=0.5, geom_types=[], draw_boxes=False):
+                    save_path=None, detect_threshold=0.5, geom_types=None, draw_boxes=False):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -137,6 +137,9 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
         A list of lists containing the detections for each image in the generator.
     """
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
+
+    if geom_types is None:
+        geom_types = []
 
     dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
     map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
