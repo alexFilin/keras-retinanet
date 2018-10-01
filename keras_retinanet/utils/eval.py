@@ -111,7 +111,8 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
     for box, label, score in zip(bboxes, labels, scores):
         geometry = _get_geometry_from_bbox(box, geometry_type, transform)
         class_name = generator.label_to_name(label)
-        features.append(Feature(geometry=geometry, properties={'class': class_name, 'score': float(score)}))
+        features.append(Feature(geometry=geometry, properties={'class': class_name, 'score': float(score),
+                                                               'transform': transform._asdict()}))
 
     if os.path.exists(filename):
         os.remove(filename)
@@ -119,7 +120,7 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
 
 
 def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
-                    save_path=None, detect_threshold=0.5, geom_types=None, draw_boxes=False):
+                    save_path=None, detect_threshold=0.5, geom_types=[], draw_boxes=False):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -137,12 +138,12 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
     """
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
 
-    if save_path is not None:
-        dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
-        map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
+    dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
+    map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
 
     with tqdm.tqdm(total=generator.size()) as bar:
         for i in range(generator.size()):
+            bar.set_description(os.path.basename(generator.image_path(i)))
             raw_image    = generator.load_image(i)
             image        = generator.preprocess_image(raw_image.copy())
             image, scale = generator.resize_image(image)
