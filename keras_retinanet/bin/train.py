@@ -162,7 +162,8 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             # use prediction model for evaluation
             evaluation = CocoEval(validation_generator, tensorboard=tensorboard_callback)
         else:
-            evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average)
+            evaluation = Evaluate(validation_generator, tensorboard=tensorboard_callback, weighted_average=args.weighted_average,
+                                  metric=args.metric)
         evaluation = RedirectModel(evaluation, prediction_model)
         callbacks.append(evaluation)
 
@@ -177,7 +178,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             ),
             verbose=1,
             save_best_only=True,
-            monitor="mAP",
+            monitor=args.metric,
             mode='max'
         )
         checkpoint = RedirectModel(checkpoint, model)
@@ -185,7 +186,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
 
     if args.lr_reduce:
         callbacks.append(keras.callbacks.ReduceLROnPlateau(
-            monitor  = 'mAP',
+            monitor  = args.metric,
             factor   = 0.9,
             patience = 2,
             verbose  = 1,
@@ -196,7 +197,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         ))
     if args.early_stopping:
         callbacks.append(keras.callbacks.EarlyStopping(
-            monitor='mAP',
+            monitor=args.metric,
             patience=args.early_stopping,
             mode='max'
         ))
@@ -426,6 +427,8 @@ def parse_args(args):
     parser.add_argument('--image-max-side', help='Rescale the image if the largest side is larger than max_side.', type=int, default=1333)
     parser.add_argument('--group-method', help='Determines how images are grouped together.', type=str, default='ratio', choices=['random', 'ratio', 'balance'])
     parser.add_argument('--weighted-average',   help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
+    parser.add_argument('--metric', help='Monitored metric to be used.', type=str, default='mAP',
+                        choices=['mAP', 'precision'])
 
     return check_args(parser.parse_args(args))
 

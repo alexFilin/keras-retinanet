@@ -33,7 +33,9 @@ class Evaluate(keras.callbacks.Callback):
         save_path=None,
         tensorboard=None,
         weighted_average=False,
-        verbose=1
+        verbose=1,
+        metric='mAP'
+
     ):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
 
@@ -55,6 +57,7 @@ class Evaluate(keras.callbacks.Callback):
         self.tensorboard     = tensorboard
         self.weighted_average = weighted_average
         self.verbose         = verbose
+        self.metric = metric
 
         super(Evaluate, self).__init__()
 
@@ -62,11 +65,38 @@ class Evaluate(keras.callbacks.Callback):
         self.times = []
         self.list_average_precisions = (0, [])
 
+    def calc_class_precisions(self, average_precisions, tag):
+        # compute per class average precision
+        total_instances = []
+        precisions = []
+        print(tag)
+        for label, (average_precision, num_annotations) in average_precisions.items():
+            if self.verbose == 1:
+                print('{:.0f} instances of class'.format(num_annotations),
+                      self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
+            total_instances.append(num_annotations)
+            precisions.append(average_precision)
+        if self.weighted_average:
+            mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
+        else:
+            mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
+        if self.verbose == 1:
+            print('{}: {:.4f}'.format(tag, mean_ap))
+
+        return mean_ap
+
+    def show_on_tensorboard(self, summary, mean_ap, tag, logs):
+        if summary is not None:
+            summary_value = summary.value.add()
+            summary_value.simple_value = mean_ap
+            summary_value.tag = tag
+        logs[tag] = mean_ap
+
     def on_epoch_end(self, epoch, logs=None):
         start_time = time.time()
         logs = logs or {}
         # run evaluation
-        average_precisions = evaluate(
+        average_precisions, mean_precisions = evaluate(
             self.generator,
             self.model,
             iou_threshold=self.iou_threshold,
@@ -74,41 +104,29 @@ class Evaluate(keras.callbacks.Callback):
             max_detections=self.max_detections,
             save_path=self.save_path
         )
-        # compute per class average precision
-        total_instances = []
-        precisions = []
-        for label, (average_precision, num_annotations ) in average_precisions.items():
-            if self.verbose == 1:
-                print('{:.0f} instances of class'.format(num_annotations),
-                      self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
-            total_instances.append(num_annotations)
-            precisions.append(average_precision)
-        if self.weighted_average:
-            self.mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
-        else:
-            self.mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
-        if self.mean_ap > self.list_average_precisions[0]:
-            self.list_average_precisions = (self.mean_ap, average_precisions)
+
+        mean_av_pr = self.calc_class_precisions(average_precisions, 'mAP')
+        mean_pr = self.calc_class_precisions(mean_precisions, 'precision')
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
             import tensorflow as tf
             summary = tf.Summary()
-            summary_value = summary.value.add()
-            summary_value.simple_value = self.mean_ap
-            summary_value.tag = 'mAP'
+            self.show_on_tensorboard(summary, mean_av_pr, 'mAP', logs)
+            self.show_on_tensorboard(summary, mean_pr, 'precision', logs)
             self.tensorboard.writer.add_summary(summary, epoch)
 
-        logs['mAP'] = self.mean_ap
+        current_result = (mean_av_pr, average_precisions) if self.metric == 'mAP' else (mean_pr, mean_precisions)
 
-        if self.verbose == 1:
-            print('mAP: {:.4f}'.format(self.mean_ap))
+        if current_result[0] > self.list_average_precisions[0]:
+            self.list_average_precisions = current_result
+
         eval_time = time.time() - start_time
         self.times.append(eval_time)
         print('Evaluation time: {}'.format(eval_time))
 
     def on_train_end(self, logs=None):
         print('Average evaluation time: {}'.format(np.average(self.times)))
-        print('Best classification results:')
+        print('Best classification results ({}):'.format(self.metric))
         for label, (average_precision, num_annotations) in self.list_average_precisions[1].items():
             print('{:.0f} instances of class'.format(num_annotations),
                   self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))

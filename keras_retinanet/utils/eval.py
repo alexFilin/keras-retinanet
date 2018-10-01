@@ -265,6 +265,7 @@ def evaluate(
                                          geom_types=vector_types, draw_boxes=draw_boxes)
     all_annotations    = _get_annotations(generator)
     average_precisions = {}
+    mean_precisions = {}
 
     # all_detections = pickle.load(open('all_detections.pkl', 'rb'))
     # all_annotations = pickle.load(open('all_annotations.pkl', 'rb'))
@@ -324,6 +325,7 @@ def evaluate(
 
         # compute average precision
         average_precision  = _compute_ap(recall, precision)
+        mean_precisions[label] = precision.mean(), num_annotations
         average_precisions[label] = average_precision, num_annotations
 
-    return average_precisions
+    return average_precisions, mean_precisions

@@ -149,7 +149,7 @@ def main(args=None):
         from ..utils.coco_eval import evaluate_coco
         evaluate_coco(generator, model, args.score_threshold)
     else:
-        average_precisions = evaluate(
+        average_precisions, mean_precisions = evaluate(
             generator,
             model,
             iou_threshold=args.iou_threshold,
@@ -161,23 +161,28 @@ def main(args=None):
         )
 
         # print evaluation
-        total_instances = []
-        precisions = []
-        for label, (average_precision, num_annotations) in average_precisions.items():
-            print('{:.0f} instances of class'.format(num_annotations),
-                  generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
-            total_instances.append(num_annotations)
-            precisions.append(average_precision)
 
-        if sum(total_instances) == 0:
-            print('No test instances found.')
-            return
+        def calc_class_precision(av_precisions, tag):
+            total_instances = []
+            precisions = []
+            print(tag)
+            for label, (average_precision, num_annotations) in av_precisions.items():
+                print('{:.0f} instances of class'.format(num_annotations), generator.label_to_name(label),
+                      'with average precision: {:.4f}'.format(average_precision))
+                total_instances.append(num_annotations)
+                precisions.append(average_precision)
 
-        if args.weighted_average:
-            print('mAP: {:.4f}'.format(sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)))
-        else:
-            print('mAP: {:.4f}'.format(sum(precisions) / sum(x > 0 for x in total_instances)))
+            if sum(total_instances) == 0:
+                print('No test instances found.')
+                return
 
+            if args.weighted_average:
+                print('{}: {:.4f}'.format(tag, sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)))
+            else:
+                print('{}: {:.4f}'.format(tag, sum(precisions) / sum(x > 0 for x in total_instances)))
+
+        calc_class_precision(average_precisions, 'mAP')
+        calc_class_precision(mean_precisions, 'precision')
 
 if __name__ == '__main__':
     main()
