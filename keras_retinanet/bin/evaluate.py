@@ -112,6 +112,8 @@ def parse_args(args):
     parser.add_argument('--weighted-average',   help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
     parser.add_argument('--draw-boxes',      help='Draw and save resulting bounding boxes on images.', action='store_true')
 
+    parser.add_argument('--resize-param',    help='Parameter to resize.', type=int)
+
     return parser.parse_args(args)
 
 
@@ -157,7 +159,8 @@ def main(args=None):
             max_detections=args.max_detections,
             save_path=args.save_path,
             vector_types=args.save_vector,
-            draw_boxes=args.draw_boxes
+            draw_boxes=args.draw_boxes,
+            resize_param=args.resize_param
         )
 
         # print evaluation
