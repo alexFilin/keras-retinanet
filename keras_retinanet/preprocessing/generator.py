@@ -52,6 +52,7 @@ class Generator(object):
         compute_anchor_targets=anchor_targets_bbox,
         compute_shapes=guess_shapes,
         preprocess_image=preprocess_image,
+        read_mode='image',
     ):
         """ Initialize Generator object.
 
@@ -77,6 +78,7 @@ class Generator(object):
         self.compute_anchor_targets = compute_anchor_targets
         self.compute_shapes         = compute_shapes
         self.preprocess_image       = preprocess_image
+        self.read_mode = read_mode
 
         self.group_index = 0
         self.lock        = threading.Lock()
@@ -164,8 +166,10 @@ class Generator(object):
     def load_image_group(self, group):
         """ Load images for all images in a group.
         """
-        return [self.load_image_hdf5_simple(image_index) for image_index in group]
-        # return [self.load_image(image_index) for image_index in group]
+        if self.read_mode == "hdf5":
+            return [self.load_image_hdf5_simple(image_index) for image_index in group]
+        else:
+            return [self.load_image(image_index) for image_index in group]
 
     def random_transform_group_entry(self, image, annotations):
         """ Randomly transforms image and annotation.

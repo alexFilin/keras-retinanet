@@ -74,7 +74,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
     all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
 
     for i in range(generator.size()):
-        raw_image    = generator.load_image_hdf5_simple(i)
+        if generator.read_mode == 'hdf5':
+            raw_image    = generator.load_image_hdf5_simple(i)
+        else:
+            raw_image = generator.load_image(i)
         image        = generator.preprocess_image(raw_image.copy())
         # image = raw_image.copy()
         image, scale = generator.resize_image(image)
@@ -104,7 +107,10 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
         image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
         if save_path is not None:
-            image = generator.load_image_hdf5(i)
+            if generator.read_mode == 'hdf5':
+                image = generator.load_image_hdf5(i)
+            else:
+                image = generator.load_image_rasterio(i)
             raw_image = image[0]
             raw_image = rendering(raw_image, r_type = 'CUM_CUT')
             draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)

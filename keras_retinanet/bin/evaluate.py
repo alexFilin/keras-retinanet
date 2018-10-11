@@ -152,7 +152,7 @@ def main(args=None):
             iou_threshold=args.iou_threshold,
             score_threshold=args.score_threshold,
             max_detections=args.max_detections,
-            save_path=args.save_path
+            save_path=args.save_path,
         )
 
         # print evaluation

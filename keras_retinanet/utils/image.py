@@ -26,6 +26,7 @@ from .transform import change_transform_origin
 from dsel.my_io import load_image
 import h5py
 import os
+import rasterio
 
 
 def read_image_bgr(path):
@@ -38,6 +39,12 @@ def read_image_bgr(path):
     # return image[:, :, ::-1].copy()
     image = cv2.imread(path, 1)
     return image.copy()
+
+
+def read_image_rasterio(path):
+    image_source = rasterio.open(path)
+    image_rgb = image_source.read()[:3, ...].transpose([1, 2, 0])
+    return image_rgb[:, :, ::-1].copy(), image_source.crs, image_source.transform
 
 
 def read_image_gdal(path):
@@ -96,13 +103,12 @@ def preprocess_image(x, mode='caffe'):
     # except for converting RGB -> BGR since we assume BGR already
     x = x.astype(keras.backend.floatx())
     if mode == 'tf':
-        x /= 32767.5
+        x /= 127.5
         x -= 1.
     elif mode == 'caffe':
-        x[..., 0] -= 935.8877
-        x[..., 1] -= 1002.0702
-        x[..., 2] -= 1243.3221
-        x[..., 3] -= 1586.7410
+        x[..., 0] -= 103.939
+        x[..., 1] -= 116.779
+        x[..., 2] -= 123.68
 
     return x
 
