@@ -14,17 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from __future__ import print_function
-
 from .anchors import compute_overlap
 from .visualization import draw_detections, draw_annotations
 
 import keras
 import numpy as np
 import os
-import tqdm
 
 import cv2
+import progressbar
+assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
 import rasterio
 import geopandas
 from dsel.my_io import save_np_using_gdal
@@ -136,7 +135,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
     # Returns
         A list of lists containing the detections for each image in the generator.
     """
-    all_detections = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
+    all_detections = [[None for i in range(generator.num_classes()) if generator.has_label(i)] for j in range(generator.size())]
 
     if geom_types is None:
         geom_types = []
@@ -144,73 +143,71 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
     dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
     map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
 
-    with tqdm.tqdm(total=generator.size()) as bar:
-        for i in range(generator.size()):
-            bar.set_description(os.path.basename(generator.image_path(i)))
-            raw_image    = generator.load_image(i)
-            image        = generator.preprocess_image(raw_image.copy())
-            image, scale = generator.resize_image(image)
+    for i in progressbar.progressbar(range(generator.size()), prefix='Running network: '):
+        raw_image    = generator.load_image(i)
+        image        = generator.preprocess_image(raw_image.copy())
+        image, scale = generator.resize_image(image)
 
-            if keras.backend.image_data_format() == 'channels_first':
-                image = image.transpose((2, 0, 1))
+        if keras.backend.image_data_format() == 'channels_first':
+            image = image.transpose((2, 0, 1))
 
-            # run network
-            boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
+        # run network
+        boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
 
-            # correct boxes for image scale
-            boxes /= scale
+        # correct boxes for image scale
+        boxes /= scale
 
-            # select indices which have a score above the threshold
-            indices = np.where(scores[0, :] > score_threshold)[0]
+        # select indices which have a score above the threshold
+        indices = np.where(scores[0, :] > score_threshold)[0]
 
-            # select those scores
-            scores = scores[0][indices]
+        # select those scores
+        scores = scores[0][indices]
 
-            # find the order with which to sort the scores
-            scores_sort = np.argsort(-scores)[:max_detections]
+        # find the order with which to sort the scores
+        scores_sort = np.argsort(-scores)[:max_detections]
 
-            # select detections
-            image_boxes      = boxes[0, indices[scores_sort], :]
-            image_scores     = scores[scores_sort]
-            image_labels     = labels[0, indices[scores_sort]]
-            image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+        # select detections
+        image_boxes      = boxes[0, indices[scores_sort], :]
+        image_scores     = scores[scores_sort]
+        image_labels     = labels[0, indices[scores_sort]]
+        image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
-            if save_path is not None:
-                image = generator.load_image_rasterio(i)
-                selection = np.where(image_scores > detect_threshold)[0]
+        if save_path is not None:
+            image = generator.load_image_rasterio(i)
+            selection = np.where(image_scores > detect_threshold)[0]
 
-                filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
-                                             str(np.around(np.mean(image_scores[selection]), decimals=2)))
+            filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
+                                         str(np.around(np.mean(image_scores[selection]), decimals=2)))
 
-                if draw_boxes:
-                    raw_image = image[0]
-                    raw_image = rendering(raw_image, r_type='CUM_CUT')
+            if draw_boxes:
+                raw_image = image[0]
+                raw_image = rendering(raw_image, r_type='CUM_CUT')
 
-                    draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
-                    draw_detections(raw_image, image_boxes[selection], image_scores[selection], image_labels[selection],
-                                    label_to_name=generator.label_to_name)
+                draw_annotations(raw_image, generator.load_annotations(i), label_to_name=generator.label_to_name)
+                draw_detections(raw_image, image_boxes[selection], image_scores[selection], image_labels[selection],
+                                label_to_name=generator.label_to_name)
 
-                    with rasterio.open(os.path.join(save_path, filename + '.TIF'), 'w', driver='GTiff',
-                                       height=raw_image.shape[0], width=raw_image.shape[1], count=3,
-                                       dtype=str(raw_image.dtype), crs=image[1], transform=image[2]
-                                       ) as new_dataset:
-                        new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
+                with rasterio.open(os.path.join(save_path, filename + '.TIF'), 'w', driver='GTiff',
+                                   height=raw_image.shape[0], width=raw_image.shape[1], count=3,
+                                   dtype=str(raw_image.dtype), crs=image[1], transform=image[2]
+                                   ) as new_dataset:
+                    new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
 
-                    # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
-                    # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
+                # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
+                # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
-                if geom_types and len(image_boxes[selection]) != 0:
-                    for g_type, dir_name in zip(geom_types, dir_names):
-                        fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
-                        _save_vector(fn, generator, image_boxes[selection], image_labels[selection],
-                                     image_scores[selection], image[2], g_type, image[1])
+            if geom_types and len(image_boxes[selection]) != 0:
+                for g_type, dir_name in zip(geom_types, dir_names):
+                    fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
+                    _save_vector(fn, generator, image_boxes[selection], image_labels[selection],
+                                 image_scores[selection], image[2], g_type, image[1])
 
-            # copy detections to all_detections
-            for label in range(generator.num_classes()):
-                all_detections[i][label] = image_detections[image_detections[:, -1] == label, :-1]
+        # copy detections to all_detections
+        for label in range(generator.num_classes()):
+            if not generator.has_label(label):
+                continue
 
-            print('{}/{}'.format(i + 1, generator.size()), end='\r')
-            bar.update()
+            all_detections[i][label] = image_detections[image_detections[:, -1] == label, :-1]
 
     return all_detections
 
@@ -228,15 +225,16 @@ def _get_annotations(generator):
     """
     all_annotations = [[None for i in range(generator.num_classes())] for j in range(generator.size())]
 
-    for i in range(generator.size()):
+    for i in progressbar.progressbar(range(generator.size()), prefix='Parsing annotations: '):
         # load the annotations
         annotations = generator.load_annotations(i)
 
         # copy detections to all_annotations
         for label in range(generator.num_classes()):
-            all_annotations[i][label] = annotations[annotations[:, 4] == label, :4].copy()
+            if not generator.has_label(label):
+                continue
 
-        print('{}/{}'.format(i + 1, generator.size()), end='\r')
+            all_annotations[i][label] = annotations['bboxes'][annotations['labels'] == label, :].copy()
 
     return all_annotations
 
@@ -278,6 +276,9 @@ def evaluate(
 
     # process detections and annotations
     for label in range(generator.num_classes()):
+        if not generator.has_label(label):
+            continue
+
         false_positives = np.zeros((0,))
         true_positives  = np.zeros((0,))
         scores          = np.zeros((0,))

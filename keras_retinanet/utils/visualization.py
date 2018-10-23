@@ -88,7 +88,7 @@ def draw_annotations(image, annotations, color=(0, 255, 0), label_to_name=None):
 
     # Arguments
         image         : The image to draw on.
-        annotations   : A [N, 5] matrix (x1, y1, x2, y2, label).
+        annotations   : A [N, 5] matrix (x1, y1, x2, y2, label) or dictionary containing bboxes (shaped [N, 4]) and labels (shaped [N]).
         color         : The color of the boxes. By default the color from keras_retinanet.utils.colors.label_color will be used.
         label_to_name : (optional) Functor for mapping a label to a name.
     """
