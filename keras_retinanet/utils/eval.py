@@ -153,6 +153,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
 
         # run network
         boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
+        # boxes, scores, labels = model.predict_on_batch(image)[:3]
 
         # correct boxes for image scale
         boxes /= scale
@@ -187,14 +188,14 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
                 draw_detections(raw_image, image_boxes[selection], image_scores[selection], image_labels[selection],
                                 label_to_name=generator.label_to_name)
 
-                with rasterio.open(os.path.join(save_path, filename + '.TIF'), 'w', driver='GTiff',
-                                   height=raw_image.shape[0], width=raw_image.shape[1], count=3,
-                                   dtype=str(raw_image.dtype), crs=image[1], transform=image[2]
-                                   ) as new_dataset:
-                    new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
+                # with rasterio.open(os.path.join(save_path, filename + '.TIF'), 'w', driver='GTiff',
+                #                    height=raw_image.shape[0], width=raw_image.shape[1], count=3,
+                #                    dtype=str(raw_image.dtype), crs=image[1], transform=image[2]
+                #                    ) as new_dataset:
+                #     new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
 
                 # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
-                # cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
+                cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
             if geom_types and len(image_boxes[selection]) != 0:
                 for g_type, dir_name in zip(geom_types, dir_names):
