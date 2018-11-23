@@ -197,11 +197,11 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
                 # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
                 cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
 
-                if geom_types and len(image_boxes[selection]) != 0:
-                    for g_type, dir_name in zip(geom_types, dir_names):
-                        fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
-                        _save_vector(fn, generator, image_boxes[selection] / resize_param, image_labels[selection],
-                                     image_scores[selection], image[2], g_type, image[1])
+            if geom_types and len(image_boxes[selection]) != 0:
+                for g_type, dir_name in zip(geom_types, dir_names):
+                    fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
+                    _save_vector(fn, generator, image_boxes[selection] / resize_param, image_labels[selection],
+                                 image_scores[selection], image[2], g_type, image[1])
 
         # copy detections to all_detections
         for label in range(generator.num_classes()):
