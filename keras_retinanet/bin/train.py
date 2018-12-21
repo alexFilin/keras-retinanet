@@ -217,8 +217,7 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
         if args.backbone.startswith('resnet'):
             schedule = {5: 'res5', 10: 'res4', 15: 'res3', 20: 'res2', 25: None}
         elif args.backbone.startswith('mobilenet'):
-            schedule = {5: '_13', 8: '_12', 11: '_11', 14: '_10', 17: '_9', 20: '_8',
-                        23: '_7', 26: '_6', 29: '_5', 32: '_4', 35: '_3', 38: '_2', 41: None}
+            schedule = {5: '_13', 14: '_10', 23: '_7', 32: '_4', 41: None}
         elif args.backbone.startswith('vgg'):
             schedule = {5: 'block5', 10: 'block4', 15: 'block3', 20: 'block2', 25: None}
         elif args.backbone.startswith('densenet'):
@@ -227,6 +226,8 @@ def create_callbacks(model, training_model, prediction_model, validation_generat
             model=model,
             schedule=schedule
         ))
+
+    callbacks.append(TimeHistory())
 
     return callbacks
 
@@ -516,9 +517,6 @@ def main(args=None):
         args,
     )
 
-    time_history = TimeHistory()
-    callbacks.append(time_history)
-
     # start training
     training_model.fit_generator(
         generator=train_generator,
@@ -528,9 +526,6 @@ def main(args=None):
         callbacks=callbacks,
         initial_epoch=initial_epoch
     )
-
-    times = time_history.times
-    print "Average epoch time: {}".format(np.average(times))
 
 
 if __name__ == '__main__':

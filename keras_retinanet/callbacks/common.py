@@ -1,4 +1,5 @@
 import keras.callbacks
+import numpy as np
 import time
 from .. import losses
 from ..utils.model import unfreeze as unfreeze_model
@@ -16,6 +17,9 @@ class TimeHistory(keras.callbacks.Callback):
         epoch_time = time.time() - self.epoch_time_start
         self.times.append(epoch_time)
         print("Epoch time: {}".format(epoch_time))
+
+    def on_train_end(self, logs=None):
+        print("Average epoch time: {}".format(np.average(self.times)))
 
 
 class ScheduledFreeze(keras.callbacks.Callback):
