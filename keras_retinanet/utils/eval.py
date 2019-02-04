@@ -119,7 +119,7 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
 
 
 def _get_detections(generator, model, score_threshold=0.05, max_detections=100, resize_param=1,
-                    save_path=None, detect_threshold=0.65, geom_types=None, draw_boxes=False):
+                    save_path=None, detect_threshold=0.7, geom_types=None, draw_boxes=False):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -243,7 +243,7 @@ def _get_annotations(generator):
 def evaluate(
     generator,
     model,
-    iou_threshold=0.65,
+    iou_threshold=0.7,
     score_threshold=0.05,
     max_detections=100,
     resize_param=1,
