@@ -49,6 +49,7 @@ def create_generator(args, preprocess_image):
     """
     common_args = {
         'preprocess_image' : preprocess_image,
+        'batch_size'       : args.batch_size
     }
 
     if args.dataset_type == 'coco':
@@ -106,6 +107,7 @@ def parse_args(args):
     parser.add_argument('--convert-model',    help='Convert the model to an inference model (ie. the input is a training model).', action='store_true')
     parser.add_argument('--backbone',         help='The backbone of the model.', default='resnet50')
     parser.add_argument('--gpu',              help='Id of the GPU to use (as reported by nvidia-smi).')
+    parser.add_argument('--batch-size',       help='Size of the batches.', default=1, type=int)
     parser.add_argument('--score-threshold',  help='Threshold on score to filter detections with (defaults to 0.05).', default=0.05, type=float)
     parser.add_argument('--iou-threshold',    help='IoU Threshold to count for a positive detection (defaults to 0.5).', default=0.5, type=float)
     parser.add_argument('--max-detections',   help='Max Detections per image (defaults to 100).', default=100, type=int)
@@ -116,6 +118,7 @@ def parse_args(args):
     parser.add_argument('--save-vector',      help='List of geometry types to save vector.', nargs='+', type=str, default=[], choices=['polygon', 'point'])
     parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
     parser.add_argument('--draw-boxes',       help='Draw and save resulting bounding boxes on images.', action='store_true')
+    parser.add_argument('--resize-param', help='Parameter to resize bounding boxes.', type=int, default=1)
 
     return parser.parse_args(args)
 
@@ -175,7 +178,8 @@ def main(args=None):
             max_detections=args.max_detections,
             save_path=args.save_path,
             vector_types=args.save_vector,
-            draw_boxes=args.draw_boxes
+            draw_boxes=args.draw_boxes,
+            resize_param=args.resize_param
         )
 
         # print evaluation

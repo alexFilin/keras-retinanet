@@ -118,8 +118,8 @@ def _save_vector(filename, generator, bboxes, labels, scores, transform, geometr
     geopandas.GeoDataFrame.from_features(features, crs=crs).to_file(filename, driver='GeoJSON')
 
 
-def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
-                    save_path=None, detect_threshold=0.5, geom_types=None, draw_boxes=False):
+def _get_detections(generator, model, score_threshold=0.05, max_detections=100, save_path=None,
+                    detect_threshold=0.5, geom_types=None, draw_boxes=False, resize_param=1):
     """ Get the detections from the model using the generator.
 
     The result is a list of lists such that the size is:
@@ -135,28 +135,20 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
     # Returns
         A list of lists containing the detections for each image in the generator.
     """
-    all_detections = [[None for i in range(generator.num_classes()) if generator.has_label(i)] for j in range(generator.size())]
 
-    if geom_types is None:
-        geom_types = []
-
-    dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
-    map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
-
-    for i in progressbar.progressbar(range(generator.size()), prefix='Running network: '):
-        raw_image    = generator.load_image(i)
-        image        = generator.preprocess_image(raw_image.copy())
+    def _batch_preprocessing(ind):
+        raw_image = generator.load_image(ind)
+        image = generator.preprocess_image(raw_image.copy())
         image, scale = generator.resize_image(image)
 
         if keras.backend.image_data_format() == 'channels_first':
             image = image.transpose((2, 0, 1))
 
-        # run network
-        boxes, scores, labels = model.predict_on_batch(np.expand_dims(image, axis=0))[:3]
-        # boxes, scores, labels = model.predict_on_batch(image)[:3]
+        return image, scale
 
+    def _batch_postprocessing(scales, boxes, scores, labels, ind):
         # correct boxes for image scale
-        boxes /= scale
+        boxes /= scales
 
         # select indices which have a score above the threshold
         indices = np.where(scores[0, :] > score_threshold)[0]
@@ -168,13 +160,14 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
         scores_sort = np.argsort(-scores)[:max_detections]
 
         # select detections
-        image_boxes      = boxes[0, indices[scores_sort], :]
-        image_scores     = scores[scores_sort]
-        image_labels     = labels[0, indices[scores_sort]]
-        image_detections = np.concatenate([image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
+        image_boxes = boxes[0, indices[scores_sort], :]
+        image_scores = scores[scores_sort]
+        image_labels = labels[0, indices[scores_sort]]
+        image_detections = np.concatenate(
+            [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
         if save_path is not None:
-            image = generator.load_image_rasterio(i)
+            image = generator.load_image_rasterio(ind)
             selection = np.where(image_scores > detect_threshold)[0]
 
             filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
@@ -195,12 +188,12 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
                 #     new_dataset.write(raw_image[..., ::-1].transpose([2, 0, 1]))
 
                 # save_np_using_gdal(os.path.join(save_path, filename+'.TIF'), raw_image[:, :, ::-1], geo_info=image[1])
-                cv2.imwrite(os.path.join(save_path, filename+'.PNG'), raw_image)
+                cv2.imwrite(os.path.join(save_path, filename + '.PNG'), raw_image)
 
             if geom_types and len(image_boxes[selection]) != 0:
                 for g_type, dir_name in zip(geom_types, dir_names):
                     fn = os.path.join(dir_name, filename + '_{}s.geojson'.format(g_type))
-                    _save_vector(fn, generator, image_boxes[selection], image_labels[selection],
+                    _save_vector(fn, generator, image_boxes[selection] / resize_param, image_labels[selection],
                                  image_scores[selection], image[2], g_type, image[1])
 
         # copy detections to all_detections
@@ -208,7 +201,30 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100,
             if not generator.has_label(label):
                 continue
 
-            all_detections[i][label] = image_detections[image_detections[:, -1] == label, :-1]
+            all_detections[ind][label] = image_detections[image_detections[:, -1] == label, :-1]
+
+    all_detections = [[None for i in range(generator.num_classes()) if generator.has_label(i)] for j in range(generator.size())]
+
+    if geom_types is None:
+        geom_types = []
+
+    dir_names = [os.path.join(save_path, '{}s'.format(geom_type)) for geom_type in geom_types]
+    map(lambda name: os.makedirs(name) if not os.path.exists(name) else None, dir_names)
+
+    for i in progressbar.progressbar(range(0, generator.size(), generator.batch_size), prefix='Running network: '):
+        # collect images indices for each batch
+        batch_indices = [j for j in range(i, i + generator.batch_size) if j < generator.size()]
+
+        # batch_preprocessing
+        batch_images, batch_scales = zip(*[_batch_preprocessing(j) for j in batch_indices])
+
+        # run network
+        batch_boxes, batch_scores, batch_labels = model.predict_on_batch(np.array(batch_images))[:3]
+
+        # batch_postprocessing
+        for j, (scales, boxes, scores, labels) in zip(batch_indices, zip(batch_scales, batch_boxes, batch_scores, batch_labels)):
+            _batch_postprocessing(np.expand_dims(scales, 0), np.expand_dims(boxes, 0),
+                                  np.expand_dims(scores, 0), np.expand_dims(labels, 0), j)
 
     return all_detections
 
@@ -246,6 +262,7 @@ def evaluate(
     iou_threshold=0.5,
     score_threshold=0.05,
     max_detections=100,
+    resize_param=1,
     save_path=None,
     vector_types=None,
     draw_boxes=None
@@ -265,7 +282,7 @@ def evaluate(
     # gather all detections and annotations
     all_detections     = _get_detections(generator, model, score_threshold=score_threshold, detect_threshold=iou_threshold,
                                          max_detections=max_detections, save_path=save_path,
-                                         geom_types=vector_types, draw_boxes=draw_boxes)
+                                         geom_types=vector_types, draw_boxes=draw_boxes, resize_param=resize_param)
     all_annotations    = _get_annotations(generator)
     average_precisions = {}
     mean_precisions = {}
