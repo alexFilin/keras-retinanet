@@ -15,39 +15,55 @@ limitations under the License.
 """
 
 from __future__ import division
-import keras
+
 import cv2
+import keras
+import numpy as np
+import rasterio
+import warnings
+from skimage import img_as_ubyte, img_as_uint
 
 from .transform import change_transform_origin
-from dsel.my_io import load_image
-import rasterio
 
 
-def read_image_bgr(path):
-    """ Read an image in BGR format.
+def _read_image(path, bit_depth):
+    img = rasterio.open(path, 'r').read()
+    if bit_depth == '8' and img.dtype == 'uint16':
+        img = img_as_ubyte(img)
+    elif bit_depth == '16' and img.dtype == 'uint8':
+        img = img_as_uint(img)
 
-    Args
-        path: Path to the image.
-    """
-    # image = np.asarray(Image.open(path).convert('RGB'))
-    # return image[:, :, ::-1].copy()
-    image = cv2.imread(path, 1)
+    img = img.transpose([1, 2, 0])
+    return img.copy()
+
+
+def _read_image_bgr(img):
+    img_rgb = img[..., :3]
+    img_bgr = img_rgb[:, :, ::-1]
+    return img_bgr.copy()
+
+
+def read_image_bgr(path, bit_depth):
+    img = _read_image(path, bit_depth)
+    return _read_image_bgr(img)
+
+
+def read_image_bgrn(path, bit_depth):
+    img = _read_image(path, bit_depth)
+    img_bgr = _read_image_bgr(img)
+    img_nir = img[..., 3]
+    image = np.concatenate((img_bgr, img_nir), axis=2)
     return image.copy()
 
 
-def read_image_gdal(path):
-    image_source = load_image(path)
-    image = image_source[0][:3, ...].transpose([1, 2, 0])
-    return image[:, :, ::-1].copy(), image_source[1]
-
-
-def read_image_rasterio(path):
+def read_image_bgr_with_geo(path):
     image_source = rasterio.open(path)
-    image_rgb = image_source.read()[:3, ...].transpose([1, 2, 0])
-    return image_rgb[:, :, ::-1].copy(), image_source.crs, image_source.transform
+    img = image_source.read().transpose([1, 2, 0])
+    image_bgr = _read_image_bgr(img)
+    return image_bgr, image_source.crs, image_source.transform
 
 
-def preprocess_image(x, mode='caffe'):
+def preprocess_image(x, statistics=None, bit_depth=None, channels=None, preprocess='centering', mode='caffe'):
     """ Preprocess an image by subtracting the ImageNet mean.
 
     Args
@@ -62,14 +78,42 @@ def preprocess_image(x, mode='caffe'):
     """
     # mostly identical to "https://github.com/keras-team/keras-applications/blob/master/keras_applications/imagenet_utils.py"
     # except for converting RGB -> BGR since we assume BGR already
+
+    band_values = ['B', 'G', 'R', 'N']
+    imagenet_values = [103.939, 116.779, 123.68]
+
     x = x.astype(keras.backend.floatx())
     if mode == 'tf':
-        x /= 127.5
+        if bit_depth == '8':
+            x /= 127.5
+        elif bit_depth == '16':
+            x /= 32767.5
         x -= 1.
+
     elif mode == 'caffe':
-        x[..., 0] -= 103.939
-        x[..., 1] -= 116.779
-        x[..., 2] -= 123.68
+        if statistics:
+            if preprocess == 'centering':
+                for i, band in enumerate(band_values[:channels]):
+                    x[..., i] -= statistics['mean'][bit_depth][band]
+            elif preprocess == 'standardization':
+                for i, band in enumerate(band_values[:channels]):
+                    x[..., i] -= (x[..., i] - statistics['mean'][bit_depth][band]) / statistics['std'][bit_depth][band]
+            else:
+                raise ValueError('{} statistic method is not implemented!'.format(preprocess))
+        else:
+            if preprocess != 'centering':
+                warnings.warn('\nWARNING! Imagenet values are only for preprocessing by centering!\n')
+
+            if bit_depth == '8':
+                for i, value in enumerate(imagenet_values):
+                    x[..., i] -= value
+            elif bit_depth == '16':
+                for i, value in enumerate(imagenet_values):
+                    x[..., i] -= value * 256
+            else:
+                raise ValueError('{} bit depth is not implemented!'.format(preprocess))
+    else:
+        raise ValueError('{} mode is not implemented!'.format(mode))
 
     return x
 

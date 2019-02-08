@@ -14,52 +14,96 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .anchors import compute_overlap
-from .visualization import draw_detections, draw_annotations
-
-import keras
-import numpy as np
 import os
 
 import cv2
+import keras
+import numpy as np
 import progressbar
+
+from .anchors import compute_overlap
+from .visualization import draw_detections, draw_annotations
+
 assert(callable(progressbar.progressbar)), "Using wrong progressbar module, install 'progressbar2' instead."
-import rasterio
 import geopandas
-from dsel.my_io import save_np_using_gdal
 from dsel.rendering import rendering
 from shapely.geometry import Polygon, Point
 from geojson import Feature
 from rasterio.transform import xy
+from functools import partial
 
 
-def _compute_ap(recall, precision):
-    """ Compute the average precision, given the recall and precision curves.
+def _compute_ap(recall, precision, metrics):
+    """ Compute the average precision, given the recall and precision curves. """
 
-    Code originally from https://github.com/rbgirshick/py-faster-rcnn.
+    def compute_classical_mAP(mrec, mpre):
+        ap = 0
+        for i in range(mrec.size - 1):
+            ap += ((mpre[i + 1] + mpre[i]) / 2.0) * (mrec[i + 1] - mrec[i])
+        return ap
 
-    # Arguments
-        recall:    The recall curve (list).
-        precision: The precision curve (list).
-    # Returns
-        The average precision as computed in py-faster-rcnn.
-    """
-    # correct AP calculation
-    # first append sentinel values at the end
-    mrec = np.concatenate(([0.], recall, [1.]))
-    mpre = np.concatenate(([0.], precision, [0.]))
+    def compute_left_mAP(mrec, mpre):
+        ap = 0
+        for i in range(mrec.size - 1):
+            ap += mpre[i] * (mrec[i + 1] - mrec[i])
+        return ap
 
-    # compute the precision envelope
-    for i in range(mpre.size - 1, 0, -1):
-        mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
+    def compute_right_mAP(mrec, mpre):
+        ap = 0
+        for i in range(1, mrec.size):
+            ap += mpre[i] * (mrec[i] - mrec[i - 1])
+        return ap
 
-    # to calculate area under PR curve, look for points
-    # where X axis (recall) changes value
-    i = np.where(mrec[1:] != mrec[:-1])[0]
+    def compute_retina_mAP(mrec, mpre):
+        """ RETINA MAP (using maximization) """
+        # compute the precision envelope
+        for i in range(mrec.size - 1, 0, -1):
+            mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
 
-    # and sum (\Delta recall) * prec
-    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
-    return ap
+        # to calculate area under PR curve, look for points
+        # where X axis (recall) changes value
+        i = np.where(mrec[1:] != mrec[:-1])[0]
+
+        # and sum (\Delta recall) * prec
+        ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
+
+        return ap
+
+    def compute_pascal_mAP(mrec, mpre):
+        """ PASCAL MAP """
+        change_indices = np.where(mrec[1:] != mrec[:-1])[0][::-1]
+
+        mpre[change_indices[0]:mpre.size] = np.max(mpre[change_indices[0]:mpre.size])
+        for i in range(change_indices.size - 1):
+            mpre[change_indices[i + 1]:change_indices[i] + 1] = np.max(
+                mpre[change_indices[i + 1]:change_indices[i] + 1])
+
+        sparse_rec = np.linspace(0.0, 1.0, 11, dtype=np.float16)
+        ap = mpre[0]
+        for i in range(1, len(sparse_rec)):
+            index = np.where(mrec <= sparse_rec[i])[0][-1]
+            ap += mpre[index]
+        ap /= 11
+
+        return ap
+
+    if 'precision' in metrics:
+        metrics.remove('precision')
+
+    mrec_min_max, mpre_min_max = recall.copy(), precision.copy()
+    mrec_zero_one, mpre_zero_one = np.concatenate(([0.], recall, [1.])), np.concatenate(([0.], precision, [0.]))
+
+    precisions = {}
+    metrics_mapping = {'mAP': partial(compute_classical_mAP, mrec=mrec_min_max, mpre=mpre_min_max),
+                       'left': partial(compute_left_mAP, mrec=mrec_min_max, mpre=mpre_min_max),
+                       'right': partial(compute_right_mAP, mrec=mrec_min_max, mpre=mpre_min_max),
+                       'retina': partial(compute_retina_mAP, mrec=mrec_zero_one, mpre=mpre_zero_one),
+                       'pascal': partial(compute_pascal_mAP, mrec=mrec_zero_one, mpre=mpre_zero_one)}
+
+    for metric in metrics:
+        precisions[metric] = metrics_mapping[metric]()
+
+    return precisions
 
 
 def _save_vector(filename, generator, bboxes, labels, scores, transform, geometry_type, crs):
@@ -167,7 +211,7 @@ def _get_detections(generator, model, score_threshold=0.05, max_detections=100, 
             [image_boxes, np.expand_dims(image_scores, axis=1), np.expand_dims(image_labels, axis=1)], axis=1)
 
         if save_path is not None:
-            image = generator.load_image_rasterio(ind)
+            image = generator.load_image_bgr_with_geo(ind)
             selection = np.where(image_scores > detect_threshold)[0]
 
             filename = '{}_{}_{}'.format(i, '-'.join(map(generator.label_to_name, image_labels[selection])),
@@ -265,7 +309,8 @@ def evaluate(
     resize_param=1,
     save_path=None,
     vector_types=None,
-    draw_boxes=None
+    draw_boxes=None,
+    metrics=None
 ):
     """ Evaluate a given dataset using a given model.
 
@@ -284,8 +329,14 @@ def evaluate(
                                          max_detections=max_detections, save_path=save_path,
                                          geom_types=vector_types, draw_boxes=draw_boxes, resize_param=resize_param)
     all_annotations    = _get_annotations(generator)
+
+    if metrics is None:
+        metrics = ['mAP', 'retina', 'left', 'right', 'pascal', 'precision']
+
+    metrics_values = {}
+    precisions = {}
+
     average_precisions = {}
-    mean_precisions = {}
 
     # all_detections = pickle.load(open('all_detections.pkl', 'rb'))
     # all_annotations = pickle.load(open('all_annotations.pkl', 'rb'))
@@ -302,7 +353,7 @@ def evaluate(
         scores          = np.zeros((0,))
         num_annotations = 0.0
 
-        for i in range(generator.size()):
+        for i in progressbar.progressbar(range(generator.size()), prefix='Computing metrics for class {}: '.format(label)):
             detections           = all_detections[i][label]
             annotations          = all_annotations[i][label]
             num_annotations     += annotations.shape[0]
@@ -347,8 +398,13 @@ def evaluate(
         precision = true_positives / np.maximum(true_positives + false_positives, np.finfo(np.float64).eps)
 
         # compute average precision
-        average_precision  = _compute_ap(recall, precision)
-        mean_precisions[label] = precision.mean(), num_annotations
-        average_precisions[label] = average_precision, num_annotations
+        average_precision = _compute_ap(recall, precision, metrics[:])
 
-    return average_precisions, mean_precisions
+        for metric in metrics:
+            metrics_values[metric] = {}
+            if metric == 'precision':
+                metrics_values[metric][label] = precision.mean(), num_annotations
+            else:
+                metrics_values[metric][label] = average_precision[metric], num_annotations
+
+    return metrics_values

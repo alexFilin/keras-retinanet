@@ -67,7 +67,7 @@ class DenseNetBackbone(Backbone):
     def preprocess_image(self, inputs):
         """ Takes as input an image and prepares it for being passed through the network.
         """
-        return preprocess_image(inputs, mode='tf')
+        return preprocess_image(inputs, bit_depth=self.bit_depth, mode='tf')
 
 
 def densenet_retinanet(num_classes, backbone='densenet121', inputs=None, modifier=None, **kwargs):
@@ -84,7 +84,7 @@ def densenet_retinanet(num_classes, backbone='densenet121', inputs=None, modifie
     """
     # choose default input
     if inputs is None:
-        inputs = keras.layers.Input((None, None, 3))
+        inputs = keras.layers.Input((None, None, kwargs['channels']))
 
     blocks, creator = allowed_backbones[backbone]
     model = creator(input_tensor=inputs, include_top=False, pooling=None, weights=None)

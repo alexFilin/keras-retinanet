@@ -23,6 +23,10 @@ class Backbone(object):
 
         self.backbone = backbone
         self.validate()
+        self.statistics = None
+        self.preprocess = None
+        self.bit_depth = None
+        self.channels = None
 
     def retinanet(self, *args, **kwargs):
         """ Returns a retinanet model using the correct backbone.

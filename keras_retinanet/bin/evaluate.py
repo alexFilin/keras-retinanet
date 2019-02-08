@@ -20,6 +20,7 @@ import sys
 
 import keras
 import tensorflow as tf
+import json
 
 # Allow relative imports when being executed as script.
 if __name__ == "__main__" and __package__ is None:
@@ -49,6 +50,8 @@ def create_generator(args, preprocess_image):
     """
     common_args = {
         'preprocess_image' : preprocess_image,
+        'channels': args.channels,
+        'bit_depth': args.bit_depth,
         'batch_size'       : args.batch_size
     }
 
@@ -118,8 +121,13 @@ def parse_args(args):
     parser.add_argument('--save-vector',      help='List of geometry types to save vector.', nargs='+', type=str, default=[], choices=['polygon', 'point'])
     parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
     parser.add_argument('--draw-boxes',       help='Draw and save resulting bounding boxes on images.', action='store_true')
-    parser.add_argument('--resize-param', help='Parameter to resize bounding boxes.', type=int, default=1)
-
+    parser.add_argument('--channels',         help='Channels number to be saved (rgb or rgbn)', type=int, choices=[3, 4], default=3)
+    parser.add_argument('--bit-depth',        help='Bits number to calculate statistics', type=str, choices=['8', '16'], default='8')
+    parser.add_argument('--preprocess',       help='Mode for preprocessing. In case imagenet only cemtering is used', choices=['centering', 'standardization'], default='centering')
+    parser.add_argument('--stat',             help='Path to statistics.json')
+    parser.add_argument('--metrics',          help='Metrics to display. First will be monitored (precision, mAP, retina, pascal, right, left)', type=str, nargs='+', required=False,
+                                              choices=['mAP', 'precision', 'right', 'left', 'retina', 'pascal'], default=['mAP', 'precision', 'right', 'left', 'retina', 'pascal'])
+    parser.add_argument('--resize-param',     help='Parameter to resize bounding boxes.', type=int, default=1)
     return parser.parse_args(args)
 
 
@@ -146,6 +154,16 @@ def main(args=None):
         args.config = read_config_file(args.config)
 
     backbone = models.backbone(args.backbone)
+
+    if args.stat is None and args.channels != 3:
+        raise ValueError('There are no values for preprocessing on {} channels!'.format(args.channels))
+    if args.stat is not None:
+        with open(args.stat) as f:
+            backbone.statistics = json.load(f)
+    backbone.bit_depth = args.bit_depth
+    backbone.channels = args.channels
+    backbone.preprocess = args.preprocess
+
     # create the generator
     generator = create_generator(args, backbone.preprocess_image)
 
@@ -170,7 +188,7 @@ def main(args=None):
         from ..utils.coco_eval import evaluate_coco
         evaluate_coco(generator, model, args.score_threshold)
     else:
-        average_precisions, mean_precisions = evaluate(
+        av_precisions = evaluate(
             generator,
             model,
             iou_threshold=args.iou_threshold,
@@ -179,10 +197,9 @@ def main(args=None):
             save_path=args.save_path,
             vector_types=args.save_vector,
             draw_boxes=args.draw_boxes,
+            metrics=args.metrics,
             resize_param=args.resize_param
         )
-
-        # print evaluation
 
         def calc_class_precision(av_precisions, tag):
             total_instances = []
@@ -203,9 +220,11 @@ def main(args=None):
             else:
                 print('{}: {:.4f}'.format(tag, sum(precisions) / sum(x > 0 for x in total_instances)))
 
-        calc_class_precision(average_precisions, 'mAP')
-        calc_class_precision(mean_precisions, 'precision')
+        for metric in args.metrics:
+            calc_class_precision(av_precisions[metric], metric)
 
 
 if __name__ == '__main__':
     main()
+
+

@@ -53,7 +53,9 @@ class Generator(object):
         compute_anchor_targets=anchor_targets_bbox,
         compute_shapes=guess_shapes,
         preprocess_image=preprocess_image,
-        config=None
+        config=None,
+        channels =  None,
+        bit_depth = None
     ):
         """ Initialize Generator object.
 
@@ -80,6 +82,9 @@ class Generator(object):
         self.compute_shapes         = compute_shapes
         self.preprocess_image       = preprocess_image
         self.config                 = config
+
+        self.channels = channels
+        self.bit_depth = bit_depth
 
         self.group_index = 0
         self.lock        = threading.Lock()

@@ -64,7 +64,7 @@ class VGGBackbone(Backbone):
     def preprocess_image(self, inputs):
         """ Takes as input an image and prepares it for being passed through the network.
         """
-        return preprocess_image(inputs, mode='caffe')
+        return preprocess_image(inputs, self.statistics, self.bit_depth, self.channels, self.preprocess, mode='caffe')
 
 
 def vgg_retinanet(num_classes, backbone='vgg16', inputs=None, modifier=None, **kwargs):
@@ -81,7 +81,7 @@ def vgg_retinanet(num_classes, backbone='vgg16', inputs=None, modifier=None, **k
     """
     # choose default input
     if inputs is None:
-        inputs = keras.layers.Input(shape=(None, None, 3))
+        inputs = keras.layers.Input(shape=(None, None, kwargs['channels']))
 
     # create the vgg backbone
     if backbone == 'vgg16':

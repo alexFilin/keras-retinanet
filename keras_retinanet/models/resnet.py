@@ -74,7 +74,7 @@ class ResNetBackbone(Backbone):
     def preprocess_image(self, inputs):
         """ Takes as input an image and prepares it for being passed through the network.
         """
-        return preprocess_image(inputs, mode='caffe')
+        return preprocess_image(inputs, self.statistics, self.bit_depth, self.channels, self.preprocess, mode='caffe')
 
 
 def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=None, **kwargs):
@@ -92,9 +92,9 @@ def resnet_retinanet(num_classes, backbone='resnet50', inputs=None, modifier=Non
     # choose default input
     if inputs is None:
         if keras.backend.image_data_format() == 'channels_first':
-            inputs = keras.layers.Input(shape=(3, None, None))
+            inputs = keras.layers.Input(shape=(kwargs['channels'], None, None))
         else:
-            inputs = keras.layers.Input(shape=(None, None, 3))
+            inputs = keras.layers.Input(shape=(None, None, kwargs['channels']))
 
     # create the resnet backbone
     if backbone == 'resnet18':

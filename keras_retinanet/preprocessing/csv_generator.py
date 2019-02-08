@@ -16,7 +16,7 @@ limitations under the License.
 """
 
 from .generator import Generator
-from ..utils.image import read_image_bgr, read_image_gdal, read_image_rasterio
+from ..utils.image import read_image_bgr, read_image_bgr_with_geo, read_image_bgrn
 
 import numpy as np
 from PIL import Image
@@ -204,17 +204,15 @@ class CSVGenerator(Generator):
     def load_image(self, image_index):
         """ Load an image at the image_index.
         """
-        return read_image_bgr(self.image_path(image_index))
+        if self.channels == 3:
+            return read_image_bgr(self.image_path(image_index), self.bit_depth)
+        elif self.channels == 4:
+            return read_image_bgrn(self.image_path(image_index), self.bit_depth)
 
-    def load_image_gdal(self, image_index):
+    def load_image_bgr_with_geo(self, image_index):
         """ Load an image at the image_index.
         """
-        return read_image_gdal(self.image_path(image_index))
-
-    def load_image_rasterio(self, image_index):
-        """ Load an image at the image_index.
-        """
-        return read_image_rasterio(self.image_path(image_index))
+        return read_image_bgr_with_geo(self.image_path(image_index))
 
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.

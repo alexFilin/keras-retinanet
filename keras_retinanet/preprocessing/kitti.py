@@ -21,7 +21,7 @@ import numpy as np
 from PIL import Image
 
 from .generator import Generator
-from ..utils.image import read_image_bgr
+from ..utils.image import read_image_bgr, read_image_bgrn
 
 kitti_classes = {
     'Car': 0,
@@ -145,7 +145,10 @@ class KittiGenerator(Generator):
     def load_image(self, image_index):
         """ Load an image at the image_index.
         """
-        return read_image_bgr(self.images[image_index])
+        if self.channels == 3:
+            return read_image_bgr(self.images[image_index], self.bit_depth)
+        elif self.channels == 4:
+            return read_image_bgrn(self.images[image_index], self.bit_depth)
 
     def load_annotations(self, image_index):
         """ Load annotations for an image_index.

@@ -18,6 +18,7 @@ import keras
 from ..utils.eval import evaluate
 import time
 import numpy as np
+import tensorflow as tf
 
 
 class Evaluate(keras.callbacks.Callback):
@@ -26,6 +27,7 @@ class Evaluate(keras.callbacks.Callback):
 
     def __init__(
         self,
+        metrics,
         generator,
         iou_threshold=0.5,
         score_threshold=0.05,
@@ -33,13 +35,12 @@ class Evaluate(keras.callbacks.Callback):
         save_path=None,
         tensorboard=None,
         weighted_average=False,
-        verbose=1,
-        metric='mAP'
-
+        verbose=1
     ):
         """ Evaluate a given dataset using a given model at the end of every epoch during training.
 
         # Arguments
+            metrics          : Metrics to display. First will be monitored (choices: precision, mAP, retina, pascal, right, left)
             generator        : The generator that represents the dataset to evaluate.
             iou_threshold    : The threshold used to consider when a detection is positive or negative.
             score_threshold  : The score confidence threshold to use for detections.
@@ -57,9 +58,14 @@ class Evaluate(keras.callbacks.Callback):
         self.tensorboard     = tensorboard
         self.weighted_average = weighted_average
         self.verbose         = verbose
-        self.metric = metric
+        self.metrics = metrics
+        self.monitor_metric = metrics[0]
 
         super(Evaluate, self).__init__()
+
+        self.metrics_writers = {}
+        for metric in self.metrics:
+            self.metrics_writers[metric] = tf.summary.FileWriter('./logs/{}'.format(metric))
 
     def on_train_begin(self, logs=None):
         self.times = []
@@ -85,37 +91,45 @@ class Evaluate(keras.callbacks.Callback):
 
         return mean_ap
 
-    def show_on_tensorboard(self, summary, mean_ap, tag, logs):
-        if summary is not None:
-            summary_value = summary.value.add()
-            summary_value.simple_value = mean_ap
-            summary_value.tag = tag
-        logs[tag] = mean_ap
+    def show_on_tensorboard(self, ap, tag, logs, epoch):
+        summary = tf.Summary()
+        summary_value = summary.value.add()
+        summary_value.simple_value = ap
+        if tag != 'precision':
+            summary_value.tag = 'ap'
+            self.metrics_writers[tag].add_summary(summary, epoch)
+            if tag == self.monitor_metric:
+                logs[tag] = ap
+        if tag == 'precision':
+            summary_value.tag = 'precision'
+            self.metrics_writers[tag].add_summary(summary, epoch)
+            logs[tag] = ap
 
     def on_epoch_end(self, epoch, logs=None):
         start_time = time.time()
         logs = logs or {}
         # run evaluation
-        average_precisions, mean_precisions = evaluate(
+        av_precisions = evaluate(
             self.generator,
             self.model,
             iou_threshold=self.iou_threshold,
             score_threshold=self.score_threshold,
             max_detections=self.max_detections,
-            save_path=self.save_path
+            save_path=self.save_path,
+            metrics=self.metrics
         )
 
-        mean_av_pr = self.calc_class_precisions(average_precisions, 'mAP')
-        mean_pr = self.calc_class_precisions(mean_precisions, 'precision')
+        metrics_precisions = {}
+        metrics_values = {}
+        for metric in self.metrics:
+            metrics_precisions[metric] = av_precisions[metric]
+            metrics_values[metric] = self.calc_class_precisions(metrics_precisions[metric], metric)
 
         if self.tensorboard is not None and self.tensorboard.writer is not None:
-            import tensorflow as tf
-            summary = tf.Summary()
-            self.show_on_tensorboard(summary, mean_av_pr, 'mAP', logs)
-            self.show_on_tensorboard(summary, mean_pr, 'precision', logs)
-            self.tensorboard.writer.add_summary(summary, epoch)
+            for metric in self.metrics:
+                self.show_on_tensorboard(metrics_values[metric], metric, logs, epoch)
 
-        current_result = (mean_av_pr, average_precisions) if self.metric == 'mAP' else (mean_pr, mean_precisions)
+        current_result = (metrics_values[self.monitor_metric], metrics_precisions[self.monitor_metric])
 
         if current_result[0] > self.list_average_precisions[0]:
             self.list_average_precisions = current_result
@@ -126,7 +140,7 @@ class Evaluate(keras.callbacks.Callback):
 
     def on_train_end(self, logs=None):
         print('Average evaluation time: {}'.format(np.average(self.times)))
-        print('Best classification results ({}):'.format(self.metric))
+        print('Best classification results ({}):'.format(self.monitor_metric))
         for label, (average_precision, num_annotations) in self.list_average_precisions[1].items():
             print('{:.0f} instances of class'.format(num_annotations),
                   self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))

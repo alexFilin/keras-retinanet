@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from ..preprocessing.generator import Generator
-from ..utils.image import read_image_bgr
+from ..utils.image import read_image_bgr, read_image_bgrn
 
 import os
 import numpy as np
@@ -143,7 +143,10 @@ class PascalVocGenerator(Generator):
         """ Load an image at the image_index.
         """
         path = os.path.join(self.data_dir, 'JPEGImages', self.image_names[image_index] + self.image_extension)
-        return read_image_bgr(path)
+        if self.channels == 3:
+            return read_image_bgr(path, self.bit_depth)
+        elif self.channels == 4:
+            return read_image_bgrn(path, self.bit_depth)
 
     def __parse_annotation(self, element):
         """ Parse an annotation given an XML element.
