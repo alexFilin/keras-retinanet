@@ -82,14 +82,16 @@ class Evaluate(keras.callbacks.Callback):
                       self.generator.label_to_name(label), 'with average precision: {:.4f}'.format(average_precision))
             total_instances.append(num_annotations)
             precisions.append(average_precision)
-        if self.weighted_average:
-            mean_ap = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
-        else:
-            mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
+
+        mean_ap_weighted = sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)
+        mean_ap = sum(precisions) / sum(x > 0 for x in total_instances)
         if self.verbose == 1:
             print('{}: {:.4f}'.format(tag, mean_ap))
-
-        return mean_ap
+            print('Weighted {}: {:.4f}'.format(tag, mean_ap_weighted))
+        if self.weighted_average:
+            return mean_ap_weighted
+        else:
+            return mean_ap
 
     def show_on_tensorboard(self, ap, tag, logs, epoch):
         summary = tf.Summary()

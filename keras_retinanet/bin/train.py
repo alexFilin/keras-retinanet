@@ -122,7 +122,10 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
     # make prediction model
     prediction_model = retinanet_bbox(model=model, anchor_params=anchor_params)
 
-    # compile model
+    return model, training_model, prediction_model
+
+
+def compile_model(training_model):
     training_model.compile(
         loss={
             'regression'    : losses.smooth_l1(),
@@ -130,8 +133,6 @@ def create_models(backbone_retinanet, num_classes, weights, multi_gpu=0, freeze_
         },
         optimizer=keras.optimizers.adam(lr=1e-5, clipnorm=0.001)
     )
-
-    return model, training_model, prediction_model
 
 
 def create_callbacks(model, training_model, prediction_model, validation_generator, args):
@@ -445,7 +446,7 @@ def parse_args(args):
     parser.add_argument('--channels',         help='Channels number to be saved (rgb or rgbn)', type=int, choices=[3, 4], default=3)
     parser.add_argument('--bit-depth',        help='Bits number to calculate statistics', type=str, choices=['8', '16'], default='8')
     parser.add_argument('--group-method',     help='Determines how images are grouped together.', type=str, default='ratio', choices=['random', 'ratio', 'balance'])
-    parser.add_argument('--weighted-average', help='Compute the mAP using the weighted average of precisions among classes.', action='store_true')
+    parser.add_argument('--weighted-average', help='Use the weighted average of precisions among classes.', action='store_true')
     parser.add_argument('--metrics',          help='Metrics to display. First will be monitored (precision, mAP, retina, pascal, right, left)', type=str, nargs='+', required=False,
                                               choices=['mAP', 'precision', 'right', 'left', 'retina', 'pascal'], default=['mAP', 'precision'])
     return check_args(parser.parse_args(args))
@@ -513,6 +514,8 @@ def main(args=None):
             config=args.config,
             channels=args.channels
         )
+
+        compile_model(training_model)
 
     # print model summary
     print(model.summary())

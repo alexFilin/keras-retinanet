@@ -215,10 +215,8 @@ def main(args=None):
                 print('No test instances found.')
                 return
 
-            if args.weighted_average:
-                print('{}: {:.4f}'.format(tag, sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)))
-            else:
-                print('{}: {:.4f}'.format(tag, sum(precisions) / sum(x > 0 for x in total_instances)))
+            print('Average {}: {:.4f}'.format(tag, sum(precisions) / sum(x > 0 for x in total_instances)))
+            print('Weighted average {}: {:.4f}'.format(tag, sum([a * b for a, b in zip(total_instances, precisions)]) / sum(total_instances)))
 
         for metric in args.metrics:
             calc_class_precision(av_precisions[metric], metric)
