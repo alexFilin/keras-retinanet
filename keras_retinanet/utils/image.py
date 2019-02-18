@@ -27,9 +27,9 @@ from .transform import change_transform_origin
 
 
 def convert_bit_depth(img_arr, bit_depth):
-    if bit_depth == '8' and img_arr.dtype == 'uint16':
+    if bit_depth == '8' and img_arr.dtype != 'uint8':
         img_arr = img_as_ubyte(img_arr)
-    elif bit_depth == '16' and img_arr.dtype == 'uint8':
+    elif bit_depth == '16' and img_arr.dtype != 'uint16':
         img_arr = img_as_uint(img_arr)
     img = img_arr.transpose([1, 2, 0])
     return img
