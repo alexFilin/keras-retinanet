@@ -123,7 +123,7 @@ def parse_args(args):
     parser.add_argument('--draw-boxes',       help='Draw and save resulting bounding boxes on images.', action='store_true')
     parser.add_argument('--channels',         help='Channels number to be saved (rgb or rgbn)', type=int, choices=[3, 4], default=3)
     parser.add_argument('--bit-depth',        help='Bits number to calculate statistics', type=str, choices=['8', '16'], default='8')
-    parser.add_argument('--preprocess',       help='Mode for preprocessing. In case imagenet only cemtering is used', choices=['centering', 'standardization'], default='centering')
+    parser.add_argument('--preprocess',       help='Mode for preprocessing. In case imagenet only centering is used', choices=['centering', 'standardization'], default='centering')
     parser.add_argument('--stat',             help='Path to statistics.json')
     parser.add_argument('--metrics',          help='Metrics to display. First will be monitored (precision, mAP, retina, pascal, right, left)', type=str, nargs='+', required=False,
                                               choices=['mAP', 'precision', 'right', 'left', 'retina', 'pascal'], default=['mAP', 'precision', 'right', 'left', 'retina', 'pascal'])
