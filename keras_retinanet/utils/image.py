@@ -26,14 +26,18 @@ from skimage import img_as_ubyte, img_as_uint
 from .transform import change_transform_origin
 
 
+def convert_bit_depth(img_arr, bit_depth):
+    if bit_depth == '8' and img_arr.dtype == 'uint16':
+        img_arr = img_as_ubyte(img_arr)
+    elif bit_depth == '16' and img_arr.dtype == 'uint8':
+        img_arr = img_as_uint(img_arr)
+    img = img_arr.transpose([1, 2, 0])
+    return img
+
+
 def _read_image(path, bit_depth):
     img = rasterio.open(path, 'r').read()
-    if bit_depth == '8' and img.dtype == 'uint16':
-        img = img_as_ubyte(img)
-    elif bit_depth == '16' and img.dtype == 'uint8':
-        img = img_as_uint(img)
-
-    img = img.transpose([1, 2, 0])
+    img = convert_bit_depth(img, bit_depth)
     return img.copy()
 
 
